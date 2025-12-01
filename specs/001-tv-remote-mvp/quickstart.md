@@ -1,22 +1,22 @@
-# Quickstart Guide: TV Remote MVP Development
+# Quickstart Guide: TV Remote MVP Development (iOS)
 
-**Created**: 2025-12-01  
-**Purpose**: 快速搭建本地开发环境，运行应用并在 Mock/真机模式间切换
+**Created**: 2025-12-02  
+**Purpose**: 快速搭建 iOS 原生开发环境，运行应用并在 Mock/真机模式间切换
 
 ---
 
 ## 1. 环境要求
 
 ### 必备软件
-- **Node.js**: >= 16.x（推荐 18.x LTS）
-- **npm** 或 **yarn**: 包管理工具
-- **Expo CLI**: `npm install -g expo-cli`
+- **macOS**: 13.0 (Ventura) 或更高版本
+- **Xcode**: 15.0+ (包含 iOS 17 SDK)
+- **Swift**: 5.9+
 - **Git**: 用于版本控制
+- **CocoaPods** 或 **Swift Package Manager**: 依赖管理
 
-### 可选工具
-- **Xcode** (macOS): 用于 iOS 模拟器/真机调试
-- **Android Studio**: 用于 Android 模拟器/真机调试
-- **Expo Go App**: 移动端快速预览（iOS/Android 应用商店下载）
+### 硬件要求
+- **iPhone 真机** (iOS 15+): 用于真机调试
+- **Apple Developer Account**: 用于真机部署
 
 ---
 
@@ -32,51 +32,48 @@ cd tv-remote-demo
 # 切换到 feature 分支
 git checkout 001-tv-remote-mvp
 
-# 安装依赖
-npm install
-# 或
-yarn install
+# 如果使用 CocoaPods
+cd TVRemote
+pod install
+
+# 打开工作区
+open TVRemote.xcworkspace
 ```
 
-### 2.2 配置环境变量
+### 2.2 配置 Scheme 环境变量
 
-创建 `.env` 文件（根目录）：
+在 Xcode 中配置 Mock 模式：
 
-```bash
-# Mock 模式开关（1 = 启用 Mock，0 或未设置 = 真机模式）
-TV_REMOTE_USE_MOCK=1
+1. 选择 `Product` → `Scheme` → `Edit Scheme...`
+2. 选择 `Run` → `Arguments` → `Environment Variables`
+3. 添加以下变量：
 
-# Mock 模式配置（可选）
-MOCK_SIMULATE_TIMEOUT=0           # 模拟连接超时
-MOCK_DISCOVER_DEVICES_COUNT=5     # 模拟发现设备数量
-```
+| 变量名 | 值 | 说明 |
+|--------|------|------|
+| `TV_REMOTE_USE_MOCK` | `1` | 启用 Mock 模式 |
+| `MOCK_SIMULATE_TIMEOUT` | `0` | 模拟连接超时 |
+| `MOCK_DISCOVER_DEVICES_COUNT` | `5` | 模拟发现设备数量 |
 
 **说明**:
-- 默认情况下（`TV_REMOTE_USE_MOCK` 未设置或为 `0`），应用运行在**真机模式**，需要真实的电视设备。
-- 设置 `TV_REMOTE_USE_MOCK=1` 后，应用使用 `MockAdapter`，无需实际设备即可开发和测试 UI。
+- `TV_REMOTE_USE_MOCK=1`: 应用使用 `MockAdapter`，无需实际设备即可开发和测试 UI
+- `TV_REMOTE_USE_MOCK=0` 或未设置: 应用运行在**真机模式**，需要真实的电视设备
 
 ---
 
-## 3. 启动开发服务器
+## 3. 运行应用
 
-### 3.1 使用 Expo 启动
+### 3.1 在模拟器上运行
 
-```bash
-# 启动 Expo 开发服务器
-npm start
-# 或
-yarn start
-# 或
-expo start
-```
+1. 在 Xcode 中选择目标设备（如 `iPhone 15 Pro`）
+2. 点击 `Run` 按钮（或按 `⌘R`）
+3. 等待编译完成，模拟器将自动启动应用
 
-### 3.2 在模拟器/真机上运行
+### 3.2 在真机上运行
 
-启动后会看到二维码和选项菜单：
-
-- **iOS 模拟器**: 按 `i` 键（需安装 Xcode）
-- **Android 模拟器**: 按 `a` 键（需安装 Android Studio）
-- **真机扫码**: 使用 Expo Go App 扫描二维码
+1. 使用 USB 连接 iPhone 到 Mac
+2. 在 Xcode 中选择你的 iPhone 作为目标设备
+3. 首次运行需要在 `Signing & Capabilities` 中配置开发团队
+4. 点击 `Run` 按钮
 
 ---
 
@@ -84,12 +81,9 @@ expo start
 
 ### 4.1 启用 Mock 模式（开发阶段推荐）
 
-```bash
-# 修改 .env 文件
+在 Scheme 环境变量中设置：
+```
 TV_REMOTE_USE_MOCK=1
-
-# 重启开发服务器
-npm start
 ```
 
 **Mock 模式特性**:
@@ -98,20 +92,30 @@ npm start
 - `sendKey()` 模拟 50-100ms 延迟，无需真实电视响应
 - 所有操作在内存中记录，可用于调试和测试
 
-### 4.2 切换到真机模式
+### 4.2 代码中切换模式
 
-```bash
-# 修改 .env 文件
-TV_REMOTE_USE_MOCK=0
-# 或直接删除该行
+```swift
+// AppConfiguration.swift
+enum Environment {
+    static var useMockAdapter: Bool {
+        ProcessInfo.processInfo.environment["TV_REMOTE_USE_MOCK"] == "1"
+    }
+}
 
-# 重启开发服务器
-npm start
+// AdapterFactory.swift
+func createAdapter(for platform: TVPlatform) -> PlatformAdapter {
+    if Environment.useMockAdapter {
+        return MockAdapter()
+    }
+    switch platform {
+    case .androidTV: return AndroidTvAdapter()
+    case .fireTV: return FireTvAdapter()
+    case .webOS: return WebOsAdapter()
+    case .tizen: return TizenAdapter()
+    case .roku: return RokuAdapter()
+    }
+}
 ```
-
-**真机模式要求**:
-- 设备与电视在同一局域网内
-- 不同平台需要不同的准备工作（见第 5 节）
 
 ---
 
@@ -131,7 +135,7 @@ npm start
 
 **注意事项**:
 - ADB 调试主要用于开发/演示场景，不适合普通用户
-- 部分路由器可能阻止 ADB 端口，需调整网络设置
+- 部分路由器可能阻止 ADB 端口（5555），需调整网络设置
 
 ---
 
@@ -139,15 +143,17 @@ npm start
 
 **前置条件**:
 1. 确保电视已连接 Wi-Fi 并获取 IP 地址
-2. 在应用中输入电视 IP 地址
+2. 在电视设置中启用"移动设备连接"
 
 **连接步骤**:
-1. 首次连接时，电视会显示 **6 位配对码**
-2. 在应用中输入配对码并提交
-3. 配对成功后，应用会保存 token，后续无需重新配对
+1. 在应用中输入电视 IP 地址或通过 mDNS 自动发现
+2. 首次连接时，电视会显示 **允许连接的提示框**
+3. 用户在电视上点击"允许"后，应用会保存 client key
+4. 后续连接自动复用 token，无需重新授权
 
 **注意事项**:
-- 配对 token 默认存储在 AsyncStorage，建议后续升级到 SecureStore
+- webOS 4.0+ 支持加密 WebSocket (WSS, 端口 3001)
+- Client key 将安全存储在 iOS Keychain
 
 ---
 
@@ -155,15 +161,17 @@ npm start
 
 **前置条件**:
 1. 确保电视已连接 Wi-Fi 并获取 IP 地址
-2. 在应用中输入电视 IP 地址
+2. 在电视设置中启用"外部设备管理器" → "允许网络遥控"
 
 **连接步骤**:
-1. 首次连接时，电视会显示 **配对 PIN 码**
-2. 在应用中输入 PIN 码并提交
-3. 配对成功后，应用会保存 token
+1. 在应用中输入电视 IP 地址
+2. 首次连接时，电视会显示 **允许连接的弹窗**
+3. 确认后，应用会保存 authorization token
+4. Token 将安全存储在 iOS Keychain
 
 **注意事项**:
-- 部分旧款 Tizen 设备可能不支持网络遥控 API
+- Tizen 4.0+ 需要使用 WSS (端口 8002) 加密连接
+- 部分旧款设备可能不支持 Token 认证
 
 ---
 
@@ -171,45 +179,72 @@ npm start
 
 **前置条件**:
 1. 确保电视/设备已连接 Wi-Fi
-2. 在应用中输入 Roku 设备 IP 地址
+2. Roku 默认开启 ECP 协议
 
 **连接步骤**:
-1. 无需配对，直接通过 HTTP 发送指令
-2. 连接成功后即可遥控
+1. 在应用中输入 Roku 设备 IP 地址或通过 SSDP 自动发现
+2. 无需配对，直接通过 HTTP 发送指令
+3. 连接成功后即可遥控
 
 **注意事项**:
 - Roku 协议最简单，适合作为首个真机测试平台
+- 使用 HTTP 端口 8060
 
 ---
 
 ## 6. 目录结构说明
 
 ```
-tv-remote-demo/
-├── src/
-│   ├── app/                    # UI 层
-│   │   ├── screens/            # 页面组件
-│   │   ├── components/         # 公共 UI 组件
-│   │   └── navigation/         # 导航配置
-│   ├── domain/                 # 业务逻辑层
-│   │   ├── models/             # 数据模型（TVDevice、ConnectionSession 等）
-│   │   ├── services/           # 业务服务（DeviceManager 等）
-│   │   └── remote/             # 遥控抽象层
-│   │       ├── RemoteAbstraction.ts
-│   │       ├── PlatformAdapter.ts
-│   │       ├── adapters/       # 各平台真机适配器
-│   │       └── mocks/          # Mock 适配器
-│   └── infra/                  # 基础设施层
-│       ├── storage/            # AsyncStorage 封装
-│       ├── config/             # 环境变量读取
-│       └── logging/            # 日志工具
-├── tests/                      # 测试文件
-│   ├── unit/
-│   ├── integration/
-│   └── e2e/
-├── .env                        # 环境变量配置
-├── package.json
-└── README.md
+TVRemote/
+├── App/                        # App 入口
+│   ├── TVRemoteApp.swift
+│   └── AppDelegate.swift
+├── Presentation/               # UI 层
+│   ├── Screens/                # 页面组件
+│   │   ├── DeviceListScreen.swift
+│   │   ├── DeviceDiscoveryScreen.swift
+│   │   ├── PairingScreen.swift
+│   │   └── RemoteControlScreen.swift
+│   ├── Components/             # 公共 UI 组件
+│   │   ├── RemoteButton.swift
+│   │   ├── ConnectionStatusBadge.swift
+│   │   └── DeviceCard.swift
+│   └── ViewModels/             # 视图模型
+│       ├── DeviceListViewModel.swift
+│       └── RemoteControlViewModel.swift
+├── Domain/                     # 业务逻辑层
+│   ├── Models/                 # 数据模型
+│   │   ├── TVDevice.swift
+│   │   ├── ConnectionSession.swift
+│   │   ├── RemoteProfile.swift
+│   │   └── RemoteKey.swift
+│   ├── Services/               # 业务服务
+│   │   ├── DeviceManager.swift
+│   │   ├── SessionManager.swift
+│   │   └── ReconnectionService.swift
+│   └── Protocols/              # 协议定义
+│       └── PlatformAdapter.swift
+├── Infrastructure/             # 基础设施层
+│   ├── Adapters/               # 平台适配器
+│   │   ├── AndroidTvAdapter.swift
+│   │   ├── FireTvAdapter.swift
+│   │   ├── WebOsAdapter.swift
+│   │   ├── TizenAdapter.swift
+│   │   ├── RokuAdapter.swift
+│   │   └── MockAdapter.swift
+│   ├── Networking/             # 网络通信
+│   │   ├── WebSocketClient.swift
+│   │   ├── TCPClient.swift
+│   │   └── HTTPClient.swift
+│   ├── Storage/                # 存储封装
+│   │   ├── KeychainService.swift
+│   │   └── DeviceStorage.swift
+│   └── Discovery/              # 设备发现
+│       ├── NetworkScanner.swift
+│       └── MDNSDiscovery.swift
+└── Resources/
+    ├── Assets.xcassets
+    └── Localizable.strings
 ```
 
 ---
@@ -217,33 +252,140 @@ tv-remote-demo/
 ## 7. 常用开发命令
 
 ```bash
-# 启动开发服务器
-npm start
+# 构建项目（命令行）
+xcodebuild -workspace TVRemote.xcworkspace -scheme TVRemote -sdk iphonesimulator build
 
 # 运行单元测试
-npm test
+xcodebuild test -workspace TVRemote.xcworkspace -scheme TVRemote -destination 'platform=iOS Simulator,name=iPhone 15 Pro'
 
-# 运行测试覆盖率检查
-npm run test:coverage
+# 运行测试覆盖率
+xcodebuild test -workspace TVRemote.xcworkspace -scheme TVRemote -enableCodeCoverage YES
 
-# 代码风格检查
-npm run lint
+# SwiftLint 代码检查
+swiftlint lint
 
-# 代码格式化
-npm run format
-
-# 构建生产版本
-npm run build
-
-# 清理缓存
-expo start -c
+# SwiftFormat 代码格式化
+swiftformat TVRemote/
 ```
 
 ---
 
-## 8. 常见问题排查
+## 8. iOS Keychain 安全存储
 
-### 8.1 设备发现失败
+### 8.1 KeychainService 封装
+
+```swift
+import Security
+
+final class KeychainService {
+    static let shared = KeychainService()
+    
+    func save(token: String, for deviceId: String) throws {
+        let data = token.data(using: .utf8)!
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrAccount as String: deviceId,
+            kSecValueData as String: data,
+            kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly
+        ]
+        
+        SecItemDelete(query as CFDictionary) // 删除旧条目
+        let status = SecItemAdd(query as CFDictionary, nil)
+        guard status == errSecSuccess else {
+            throw KeychainError.saveFailed(status)
+        }
+    }
+    
+    func retrieveToken(for deviceId: String) throws -> String? {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrAccount as String: deviceId,
+            kSecReturnData as String: true,
+            kSecMatchLimit as String: kSecMatchLimitOne
+        ]
+        
+        var dataTypeRef: AnyObject?
+        let status = SecItemCopyMatching(query as CFDictionary, &dataTypeRef)
+        
+        guard status == errSecSuccess,
+              let data = dataTypeRef as? Data,
+              let token = String(data: data, encoding: .utf8) else {
+            return nil
+        }
+        return token
+    }
+    
+    func deleteToken(for deviceId: String) throws {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrAccount as String: deviceId
+        ]
+        SecItemDelete(query as CFDictionary)
+    }
+}
+
+enum KeychainError: Error {
+    case saveFailed(OSStatus)
+    case retrieveFailed(OSStatus)
+}
+```
+
+---
+
+## 9. 重连策略实现
+
+### 9.1 ReconnectionService
+
+```swift
+import Foundation
+
+actor ReconnectionService {
+    private let maxRetries = 3
+    private let baseDelay: TimeInterval = 2.0 // 2s -> 4s -> 8s
+    
+    func reconnect(to device: TVDevice, using adapter: PlatformAdapter) async throws -> ConnectionSession {
+        var lastError: Error?
+        
+        for attempt in 0..<maxRetries {
+            let delay = baseDelay * pow(2.0, Double(attempt))
+            
+            // 通知 UI 显示"重连中"状态
+            NotificationCenter.default.post(
+                name: .reconnectionAttempt,
+                object: nil,
+                userInfo: ["attempt": attempt + 1, "maxRetries": maxRetries]
+            )
+            
+            do {
+                if attempt > 0 {
+                    try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+                }
+                return try await adapter.connect(device)
+            } catch {
+                lastError = error
+                continue
+            }
+        }
+        
+        // 3次失败，通知用户手动重试
+        throw ReconnectionError.maxRetriesExceeded(lastError)
+    }
+}
+
+enum ReconnectionError: Error {
+    case maxRetriesExceeded(Error?)
+}
+
+extension Notification.Name {
+    static let reconnectionAttempt = Notification.Name("reconnectionAttempt")
+}
+```
+
+---
+
+## 10. 常见问题排查
+
+### 10.1 设备发现失败
 
 **症状**: 应用无法找到局域网内的电视设备
 
@@ -259,7 +401,7 @@ expo start -c
 
 ---
 
-### 8.2 连接超时
+### 10.2 连接超时
 
 **症状**: 连接电视时一直显示"连接中"，最后超时失败
 
@@ -275,70 +417,51 @@ expo start -c
 
 ---
 
-### 8.3 Mock 模式未生效
+### 10.3 Keychain 存储失败
 
-**症状**: 明明设置了 `TV_REMOTE_USE_MOCK=1`，但应用仍尝试连接真实设备
+**症状**: 保存配对 Token 时报错
 
 **可能原因**:
-- `.env` 文件未生效（需重启开发服务器）
-- 环境变量读取逻辑有误
+- 模拟器 Keychain 访问受限
+- Keychain 访问权限配置错误
 
 **解决方案**:
-```bash
-# 完全停止开发服务器
-# 修改 .env 文件
-TV_REMOTE_USE_MOCK=1
-
-# 清除缓存并重启
-expo start -c
-```
+- 在真机上测试 Keychain 功能
+- 检查 `Keychain Sharing` 和 `Entitlements` 配置
 
 ---
 
-### 8.4 指令发送无响应
+## 11. 下一步开发建议
 
-**症状**: 点击遥控按钮后，UI 有反馈但电视无响应
-
-**可能原因**:
-- 设备已离线
-- 该平台不支持当前按键
-- 会话已过期
-
-**解决方案**:
-- 检查设备连接状态
-- 查看日志中的错误信息
-- 尝试断开重连
-
----
-
-## 9. 下一步开发建议
-
-### Phase 0（当前阶段）
+### Phase 1（当前阶段）
 - [ ] 完成项目初始化和基础架构搭建
-- [ ] 实现 `MockAdapter` 和抽象层接口
+- [ ] 实现 `MockAdapter` 和抽象层协议
 - [ ] 搭建基础 UI（DeviceListScreen + RemoteControlScreen）
+- [ ] 实现 iOS Keychain 安全存储封装
 
-### Phase 1
+### Phase 2
 - [ ] 实现 Roku 适配器（协议最简单）
 - [ ] 完成设备发现与连接流程
 - [ ] 实现基础遥控按键（方向、确认、返回）
 
-### Phase 2
+### Phase 3
 - [ ] 实现 Android TV / Fire TV 适配器
 - [ ] 实现 webOS / Tizen 适配器
 - [ ] 添加多设备管理功能
+- [ ] 实现重连策略
 
-### Phase 3
+### Phase 4
 - [ ] 完善错误处理与离线重连
-- [ ] 添加单元测试与集成测试
+- [ ] 添加单元测试与集成测试（80%+ 覆盖率）
 - [ ] 性能优化与用户体验打磨
 
 ---
 
-## 10. 相关资源
+## 12. 相关资源
 
-- [React Native 官方文档](https://reactnative.dev/)
-- [Expo 官方文档](https://docs.expo.dev/)
+- [Apple Developer Documentation - Network Framework](https://developer.apple.com/documentation/network)
+- [Apple Developer Documentation - Keychain Services](https://developer.apple.com/documentation/security/keychain_services)
+- [Swift Async/Await](https://docs.swift.org/swift-book/documentation/the-swift-programming-language/concurrency/)
 - [Android ADB 协议](https://developer.android.com/studio/command-line/adb)
 - [LG webOS TV API](https://webostv.developer.lge.com/)
 - [Samsung Tizen TV API](https://developer.samsung.com/smarttv/develop/api-references.html)
@@ -346,7 +469,8 @@ expo start -c
 
 ---
 
-**快速开始版本**: 1.0.0  
-**最后更新**: 2025-12-01
+**快速开始版本**: 2.0.0  
+**最后更新**: 2025-12-02  
+**变更**: 从 React Native/Expo 迁移到 iOS 原生 (Swift)，整合 iOS Keychain 安全存储
 
 祝开发顺利！🚀

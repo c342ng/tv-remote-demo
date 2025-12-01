@@ -70,10 +70,20 @@
 ### Edge Cases
 
 - 当用户所在网络中存在多台同品牌同型号电视时，如何在设备发现列表中清晰区分（如通过可编辑名称 / 房间标签）。
-- 当电视暂时离线或网络不稳定时，应用如何提示当前不可用状态并在恢复后自动重连。
+- 当电视暂时离线或网络不稳定时，应用采用自动重连策略：后台静默重试最多3次（间隔递增：2s → 4s → 8s），期间显示"重连中"状态指示器；3次失败后弹出提示引导用户检查网络或手动重试。
 - 当用户尝试控制不再在同一网络内的设备时，如何优雅地失败并引导用户重新连接或移除设备。
 - 当平台不支持某些按键（例如部分设备没有“主页”或“设置”快捷键）时，如何在 UI 上做禁用或隐藏处理，避免产生误导。
 - 用户拒绝授权或中途取消配对流程时，如何回退到安全可预期的状态。
+
+## Clarifications
+
+### Session 2025-12-02
+
+- Q: 移动端应用平台支持范围？ → A: 仅 iOS 平台
+- Q: 各电视平台 SDK/协议版本要求？ → A: 仅支持各平台当前主流版本 (Android TV 10+, webOS 4.0+, Tizen 4.0+, Roku OS 10+, Fire OS 7+)
+- Q: 网络断开时的重连策略？ → A: 自动重连，后台静默重试最多3次（间隔递增），失败后提示用户
+- Q: 设备认证凭据的本地存储方式？ → A: iOS Keychain（系统级安全存储，硬件加密）
+- Q: 最大可管理设备数量限制？ → A: 最多10台设备
 
 ## Requirements *(mandatory)*
 
@@ -84,10 +94,13 @@
 
 ### Functional Requirements
 
+- **FR-000**: System MUST be developed as a native iOS application, targeting iPhone devices. Android platform is explicitly out of scope for MVP.
+
 - **FR-001**: System MUST allow users to discover and list nearby supported TVs (Android TV, Amazon Fire TV, LG webOS, Samsung Tizen, Roku) on the same network或平台允许的发现机制。
-- **FR-002**: System MUST allow users to complete initial pairing/authorization with a selected TV,并在后续会话中复用已授权的连接信息（不强制重新配对）。
+  - Minimum supported versions: Android TV 10+, Fire OS 7+, LG webOS 4.0+, Samsung Tizen 4.0+, Roku OS 10+.
+- **FR-002**: System MUST allow users to complete initial pairing/authorization with a selected TV,并在后续会话中复用已授权的连接信息（不强制重新配对）。认证凭据（如配对令牌、授权密钥）MUST 存储在 iOS Keychain 中以确保安全性。
 - **FR-003**: Users MUST be able to control a connected TV via a virtual remote UI including navigation (up/down/left/right), select/OK, back, home, volume up/down, mute, and power (where supported by platform).
-- **FR-004**: System MUST support managing multiple TVs, including adding, renaming, selecting active device, and removing devices from the saved list。
+- **FR-004**: System MUST support managing multiple TVs (maximum 10 devices), including adding, renaming, selecting active device, and removing devices from the saved list。当达到10台上限时，用户需先删除现有设备才能添加新设备。
 - **FR-005**: System MUST persist device list and user-defined labels（如客厅电视、卧室电视），在应用重启后仍能恢复。
 - **FR-006**: System MUST provide clear connection status indicators（连接中、已连接、已断开、不可用）并在状态变化时更新 UI。
 - **FR-007**: System MUST explicitly NOT require or depend on infrared (IR) hardware; all control MUST be via network-based protocols supported by target platforms。

@@ -4,7 +4,7 @@
  * UI layout is unified across platforms, with capability-driven button visibility/disabled states
  */
 import React, { useCallback, useEffect, useState, useMemo } from 'react';
-import { View, StyleSheet, ScrollView, Alert, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Alert, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -117,9 +117,9 @@ export const RemoteControlScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header with discovery icon */}
+      {/* Custom header with title and discovery icon */}
       <View style={styles.header}>
-        <View style={styles.headerSpacer} />
+        <Text style={styles.headerTitle}>遥控器</Text>
         <TouchableOpacity
           style={styles.discoveryButton}
           onPress={handleNavigateToDiscovery}
@@ -318,10 +318,14 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#2a2a2a',
   },
-  headerSpacer: {
-    width: 40,
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#fff',
   },
   discoveryButton: {
     width: 40,
@@ -335,7 +339,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingVertical: 20,
+    paddingVertical: 12,
     paddingHorizontal: 16,
     alignItems: 'center',
   },
@@ -343,42 +347,43 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 12,
-    marginVertical: 8,
+    gap: 10,
+    marginVertical: 6,
   },
   dpadContainer: {
-    marginVertical: 24,
+    marginVertical: 12,
     alignItems: 'center',
   },
   dpadRow: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 12,
-    marginVertical: 4,
+    gap: 4,
+    marginVertical: 2,
   },
   selectButton: {
     backgroundColor: '#3a3a3a',
   },
   sideControlsContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    justifyContent: 'space-between',
     width: '100%',
-    marginVertical: 16,
+    paddingHorizontal: 24,
+    marginVertical: 12,
   },
   sideControlColumn: {
     alignItems: 'center',
-    gap: 12,
+    gap: 8,
   },
   numpadContainer: {
-    marginTop: 24,
+    marginTop: 16,
     alignItems: 'center',
   },
   numpadRow: {
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: 12,
-    marginVertical: 6,
+    gap: 10,
+    marginVertical: 4,
   },
 });
 

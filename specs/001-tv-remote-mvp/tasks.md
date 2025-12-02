@@ -65,6 +65,37 @@
 - [X] T019 [P] [US1] 在 `app/remote/protocols/roku-adapter.ts` 中实现 Roku ECP HTTP 控制适配器骨架
 - [ ] T020 [US1] 在 `app/remote/services/session-manager.ts` 中实现基于 `TVSession` 抽象的连接管理（含自动重连策略：2s → 4s → 8s，最多 3 次）
 
+
+
+- [ ] T0191 [P] [US1] 在 `src/remote/services/ssdp-discovery.ts` 中实现 Roku SSDP 设备发现服务
+
+  **目标**：通过 SSDP 协议快速发现局域网内的 Roku 设备，替代当前基于 IP 子网扫描的方式，将发现时间从 ~6秒 优化到 <1秒。
+
+  **技术背景**（来自 `research.md`）：
+  - Roku 通过 SSDP 广播 `roku:ecp` 服务
+  - 发送 `M-SEARCH` 请求到 `239.255.255.250:1900`，ST 设为 `roku:ecp`
+  - 响应中的 `LOCATION` 字段包含设备 ECP URL（如 `http://10.13.12.37:8060/`）
+
+  **实现要点**：
+  1. 使用 `react-native-udp` 创建 UDP socket 发送 SSDP M-SEARCH 请求
+  2. 解析响应中的 `LOCATION` 和 `USN` 字段提取设备 IP 和唯一标识
+  3. 调用 `/query/device-info` 获取设备详细信息（名称、型号、序列号）
+  4. 实现超时机制（默认 3 秒）和去重逻辑
+  5. 导出 `discoverRokuViaSsdp(): Promise<DiscoveredDevice[]>` 接口
+
+  **集成点**：
+  - 修改 `src/remote/protocols/roku-adapter.ts` 的 `discover()` 方法，优先使用 SSDP 发现
+  - 保留当前子网扫描作为 fallback（用于 SSDP 被防火墙阻止的场景）
+
+  **依赖**：
+  - 安装 `react-native-udp`（需要 Expo dev build）
+  - 运行 `npx expo prebuild` 和 `pod install`
+
+  **验收标准**：
+  - SSDP 发现在 1 秒内返回结果（正常网络环境）
+  - 设备信息（名称、IP、型号）正确解析
+  - 日志中显示 `[SSDP] Found Roku: <device-name> at <ip>`
+
 ### Implementation for User Story 1 - 设备发现与连接
 
 - [ ] T021 [P] [US1] 在 `app/remote/services/discovery-service.ts` 中实现通用发现接口与平台/协议特定发现策略占位（目前可先基于 IP + 端口测试实现，后续接入 mDNS/SSDP）

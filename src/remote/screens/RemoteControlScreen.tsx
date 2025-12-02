@@ -2,7 +2,7 @@
  * RemoteControlScreen - Main remote control interface
  * Renders button groups and handles command dispatch
  */
-import React, { useCallback, useState, useEffect } from 'react';
+import React, { useCallback } from 'react';
 import {
   View,
   StyleSheet,
@@ -17,20 +17,28 @@ import { buttonGroups } from '../domain/default-profile';
 import {
   RemoteCommandType,
   ConnectionStatus,
-  TVDevice,
-  TVPlatform,
 } from '../domain/models';
-import { TVSession } from '../domain/remote-interfaces';
-import { getAdapter } from '../protocols/factory';
+import { useSession, clearSession } from '../services/session-store';
+
+/** Debug logger */
+const DEBUG_TAG = '[RemoteControl]';
+const debug = {
+  log: (...args: unknown[]) => console.log(DEBUG_TAG, ...args),
+  warn: (...args: unknown[]) => console.warn(DEBUG_TAG, ...args),
+  error: (...args: unknown[]) => console.error(DEBUG_TAG, ...args),
+};
 
 /**
  * RemoteControlScreen component
  */
 export const RemoteControlScreen: React.FC = () => {
-  // Connection state
-  const [device, setDevice] = useState<TVDevice | null>(null);
-  const [status, setStatus] = useState<ConnectionStatus>(ConnectionStatus.Disconnected);
-  const [session, setSession] = useState<TVSession | null>(null);
+  // Get session state from global store
+  const { device, session, status } = useSession();
+  
+  debug.log('Rendering RemoteControlScreen');
+  debug.log(`  Device: ${device?.name ?? 'none'}`);
+  debug.log(`  Session: ${session?.sessionId ?? 'none'}`);
+  debug.log(`  Status: ${status}`);
 
   // Handle status bar press - navigate to device discovery
   const handleStatusBarPress = useCallback(() => {
@@ -39,35 +47,30 @@ export const RemoteControlScreen: React.FC = () => {
 
   // Handle disconnect
   const handleDisconnect = useCallback(async () => {
-    if (session) {
-      await session.disconnect();
-      setSession(null);
-      setDevice(null);
-      setStatus(ConnectionStatus.Disconnected);
-    }
-  }, [session]);
+    debug.log('Disconnecting...');
+    await clearSession();
+  }, []);
 
   // Handle command press
   const handleCommand = useCallback(async (command: RemoteCommandType) => {
     if (!session) {
+      debug.warn('No session, cannot send command');
       Alert.alert('未连接', '请先连接电视设备');
       return;
     }
 
     try {
+      debug.log(`Sending command: ${command}`);
       const result = await session.sendCommand(command);
       if (!result.success) {
-        console.warn('Command failed:', result.error);
+        debug.warn('Command failed:', result.error);
+      } else {
+        debug.log(`Command ${command} sent successfully`);
       }
     } catch (error) {
-      console.error('Failed to send command:', error);
+      debug.error('Failed to send command:', error);
     }
   }, [session]);
-
-  // Check for stored device connection on mount
-  useEffect(() => {
-    // TODO: Load stored device from AsyncStorage and auto-reconnect
-  }, []);
 
   return (
     <SafeAreaView style={styles.container}>

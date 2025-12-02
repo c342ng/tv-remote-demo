@@ -159,6 +159,11 @@ export const RemoteControlScreen: React.FC = () => {
               isConnected={isConnected}
               size="medium"
               shape="circle"
+              style={
+                button.command === RemoteCommandType.Power
+                  ? { backgroundColor: '#e74c3c' } // Red for power
+                  : undefined
+              }
             />
           ))}
         </View>
@@ -201,7 +206,7 @@ export const RemoteControlScreen: React.FC = () => {
                   isConnected={isConnected}
                   size="large"
                   shape="circle"
-                  style={styles.selectButton}
+                  style={[styles.selectButton, { backgroundColor: '#2196F3' }]}
                 />
                 <RemoteButton
                   button={
@@ -353,13 +358,18 @@ const styles = StyleSheet.create({
   dpadContainer: {
     marginVertical: 12,
     alignItems: 'center',
+    backgroundColor: '#1a1a1a',
+    borderRadius: 100,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#333',
   },
   dpadRow: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 4,
-    marginVertical: 2,
+    gap: 8,
+    marginVertical: 4,
   },
   selectButton: {
     backgroundColor: '#3a3a3a',

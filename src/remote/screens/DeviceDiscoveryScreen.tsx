@@ -26,6 +26,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+import { MaterialIcons } from '@expo/vector-icons';
 import { DeviceListItem } from './DeviceListItem';
 import { TVDevice, TVPlatform } from '../domain/models';
 import { DiscoveredDevice, TVSession } from '../domain/remote-interfaces';
@@ -58,7 +59,6 @@ export const DeviceDiscoveryScreen: React.FC = () => {
 
   // Discovery phase state
   const [discoveryPhase, setDiscoveryPhase] = useState<DiscoveryPhase>('idle');
-  const [scanProgress, setScanProgress] = useState<number>(0);
 
   // Manual entry modal
   const [showManualEntry, setShowManualEntry] = useState(false);
@@ -79,22 +79,6 @@ export const DeviceDiscoveryScreen: React.FC = () => {
 
   // Note: We don't cleanup session on unmount because it's stored in global store
   // and will be used by RemoteControlScreen
-
-  // Get phase display text
-  const getPhaseText = useCallback((phase: DiscoveryPhase, progress?: number): string => {
-    switch (phase) {
-      case 'cache-verify':
-        return '正在验证已知设备...';
-      case 'broadcast':
-        return '正在广播发现...';
-      case 'scan':
-        return progress !== undefined ? `正在扫描网络 (${progress}%)...` : '正在扫描网络...';
-      case 'complete':
-        return '扫描完成';
-      default:
-        return '';
-    }
-  }, []);
 
   // Helper function to convert DiscoveredDevice to TVDevice
   const convertToTVDevice = useCallback(
@@ -123,7 +107,6 @@ export const DeviceDiscoveryScreen: React.FC = () => {
     setIsScanning(true);
     setDevices([]);
     setDiscoveryPhase('idle');
-    setScanProgress(0);
     seenDeviceIdsRef.current.clear();
 
     // Get and display network info first
@@ -168,9 +151,6 @@ export const DeviceDiscoveryScreen: React.FC = () => {
         onPhaseChange: (phase: DiscoveryPhase, progress?: number) => {
           debug.log(`Phase change: ${phase}${progress !== undefined ? ` (${progress}%)` : ''}`);
           setDiscoveryPhase(phase);
-          if (progress !== undefined) {
-            setScanProgress(progress);
-          }
         },
       });
 
@@ -393,46 +373,10 @@ export const DeviceDiscoveryScreen: React.FC = () => {
       {isScanning && (
         <View style={styles.scanningContainer}>
           <ActivityIndicator size="large" color="#4CAF50" />
-          <Text style={styles.scanningText}>{getPhaseText(discoveryPhase, scanProgress)}</Text>
+          <Text style={styles.scanningText}>
+            {discoveryPhase === 'complete' ? '扫描完成' : '正在扫描网络设备...'}
+          </Text>
           {networkIp && <Text style={styles.networkIpText}>手机 IP: {networkIp}</Text>}
-
-          {/* Phase indicator dots */}
-          <View style={styles.phaseIndicator}>
-            <View
-              style={[styles.phaseDot, discoveryPhase === 'cache-verify' && styles.phaseDotActive]}
-            />
-            <View style={styles.phaseConnector} />
-            <View
-              style={[styles.phaseDot, discoveryPhase === 'broadcast' && styles.phaseDotActive]}
-            />
-            <View style={styles.phaseConnector} />
-            <View style={[styles.phaseDot, discoveryPhase === 'scan' && styles.phaseDotActive]} />
-          </View>
-          <View style={styles.phaseLabels}>
-            <Text
-              style={[
-                styles.phaseLabel,
-                discoveryPhase === 'cache-verify' && styles.phaseLabelActive,
-              ]}
-            >
-              缓存
-            </Text>
-            <Text
-              style={[styles.phaseLabel, discoveryPhase === 'broadcast' && styles.phaseLabelActive]}
-            >
-              广播
-            </Text>
-            <Text style={[styles.phaseLabel, discoveryPhase === 'scan' && styles.phaseLabelActive]}>
-              扫描
-            </Text>
-          </View>
-
-          {/* Scan progress bar */}
-          {discoveryPhase === 'scan' && (
-            <View style={styles.progressContainer}>
-              <View style={[styles.progressBar, { width: `${scanProgress}%` }]} />
-            </View>
-          )}
 
           {/* Stop button */}
           <Pressable
@@ -457,6 +401,7 @@ export const DeviceDiscoveryScreen: React.FC = () => {
         ListEmptyComponent={
           !isScanning ? (
             <View style={styles.emptyContainer}>
+              <MaterialIcons name="tv-off" size={64} color="#444" />
               <Text style={styles.emptyText}>未发现设备</Text>
               <Text style={styles.emptyHint}>请确保电视已开启并连接到同一 Wi-Fi</Text>
             </View>
@@ -673,7 +618,9 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     color: '#888',
-    fontSize: 16,
+    fontSize: 18,
+    fontWeight: '600',
+    marginTop: 16,
   },
   emptyHint: {
     color: '#666',

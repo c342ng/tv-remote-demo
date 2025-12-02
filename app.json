@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "TV Remote",
-    "slug": "tv-remote-demo",
+    "slug": "tvremotedemo",
     "version": "0.1.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -14,13 +14,19 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.example.tvremote"
+      "bundleIdentifier": "com.woaifx.workapp.dev",
+      "infoPlist": {
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": true
+        }
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#1a1a2e"
-      }
+      },
+      "package": "com.example.tvremote"
     },
     "extra": {
       "eas": {
@@ -29,7 +35,8 @@
     },
     "plugins": [
       "expo-router",
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-dev-client"
     ]
   }
 }

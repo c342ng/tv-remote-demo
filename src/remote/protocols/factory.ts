@@ -3,7 +3,7 @@
  * Returns real or mock PlatformAdapter based on environment and platform.
  */
 
-import type { PlatformAdapter } from '../domain';
+import type { PlatformAdapter } from '../domain/index';
 import { TVPlatform } from '../domain/models';
 import { isMockEnv } from '../services/env';
 import { RokuAdapter } from './roku-adapter';

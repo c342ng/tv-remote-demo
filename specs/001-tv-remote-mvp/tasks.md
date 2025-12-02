@@ -171,6 +171,80 @@
 
 ---
 
+## Phase 7: Navigation & Remote UI Enhancement
+
+**Purpose**: 优化应用导航流程与遥控器界面，提升用户体验。
+
+### Implementation for Navigation Optimization
+
+- [X] T049 [US1] 修改默认启动页面为遥控器页
+  - **文件**: `app/_layout.tsx`, `app/index.tsx`
+  - **描述**: 将应用默认入口从设备发现页改为遥控器控制页
+  - **验收标准**:
+    - 启动 app 后直接进入 `/remote/control` 遥控器页面
+    - 如无已连接设备，遥控器页显示"未连接设备"提示状态
+    - 保留从遥控器页跳转到设备发现页的能力
+
+- [X] T050 [US1] 遥控器页添加设备发现入口图标
+  - **文件**: `src/remote/screens/RemoteControlScreen.tsx`
+  - **依赖**: T049
+  - **描述**: 在遥控器页右上角添加设备发现图标按钮
+  - **验收标准**:
+    - 右上角显示设备发现图标（使用 `MaterialIcons` 的 `devices` 或 `cast` 图标）
+    - 点击图标导航到 `/remote/discovery` 设备发现页
+    - 图标样式与整体 UI 风格一致（参考 plan.md 中的深色主题配色）
+
+### Implementation for Remote UI Enhancement
+
+- [X] T051 [P] [US1] 创建遥控器 Tab 切换组件
+  - **文件**: `src/remote/components/RemoteTabBar.tsx` (新建)
+  - **依赖**: T050
+  - **描述**: 创建可复用的 Tab 切换组件，用于切换方向控制键区和数字键区
+  - **验收标准**:
+    - 支持两个 Tab: "方向控制" 和 "数字键盘"
+    - 默认选中"方向控制" Tab
+    - Tab 切换有视觉反馈（选中态高亮）
+    - 组件接受 `activeTab` 和 `onTabChange` props
+
+- [X] T052 [P] [US1] 创建数字键盘组件
+  - **文件**: `src/remote/components/NumberPad.tsx` (新建)
+  - **依赖**: T051
+  - **描述**: 实现数字键盘区域组件（0-9 数字键 + 频道切换）
+  - **验收标准**:
+    - 包含 0-9 数字按钮，布局为标准电话键盘样式（3x4 网格）
+    - 复用 `RemoteButton` 组件
+    - 支持触觉反馈
+    - 数字按键通过 `commandDispatcher` 发送对应指令
+
+- [X] T053 [US1] 集成 Tab 切换到遥控器页
+  - **文件**: `src/remote/screens/RemoteControlScreen.tsx`
+  - **依赖**: T051, T052
+  - **描述**: 将 Tab 切换组件集成到遥控器页，实现方向键区与数字键区的切换
+  - **验收标准**:
+    - Tab 栏位于遥控器控制区域上方
+    - 切换 Tab 时平滑过渡显示对应键区
+    - 方向控制键区保持现有布局
+    - 数字键区显示 NumberPad 组件
+    - 切换状态不影响连接状态和其他功能
+
+### Tests for Remote UI Enhancement
+
+- [X] T054 [P] [US1] 遥控器页 UI 测试更新
+  - **文件**: `tests/unit/components/remote-control.test.tsx` (新建或更新)
+  - **依赖**: T053
+  - **描述**: 更新遥控器页相关组件的单元测试
+  - **验收标准**:
+    - 测试 Tab 切换功能
+    - 测试数字键盘按钮点击
+    - 测试右上角设备发现图标导航
+    - 测试默认显示方向控制键区
+
+**Checkpoint**: 完成后，用户启动应用直接进入遥控器页面，可通过右上角图标发现设备，并可在方向控制键区与数字键区之间切换。
+
+---
+
+
+
 ## Dependencies & Execution Order
 
 ### Phase Dependencies
@@ -181,6 +255,7 @@
 - **Phase 4 (US2)** → 依赖 Phase 2，可在 US1 进行中并行推进部分后端逻辑，但需以 US1 抽象层为基准。
 - **Phase 5 (US3)** → 依赖 Phase 2 与 US1 的抽象层与 UI 基础，可与 US2 并行。
 - **Phase 6: Polish** → 依赖所有目标用户故事完成后进行。
+- **Phase 7: Navigation & Remote UI Enhancement** → 依赖 Phase 3 (US1) 遥控器基础界面完成；可与 Phase 6 并行推进。
 
 ### Parallel Opportunities
 

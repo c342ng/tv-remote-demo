@@ -4,11 +4,14 @@
  * UI layout is unified across platforms, with capability-driven button visibility/disabled states
  */
 import React, { useCallback, useEffect, useState, useMemo } from 'react';
-import { View, StyleSheet, ScrollView, Alert } from 'react-native';
+import { View, StyleSheet, ScrollView, Alert, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+import { MaterialIcons } from '@expo/vector-icons';
 import { RemoteButton } from '../components/RemoteButton';
 import { ConnectionStatusBar } from '../components/ConnectionStatusBar';
+import { RemoteTabBar, RemoteTabType } from '../components/RemoteTabBar';
+import { NumberPad } from '../components/NumberPad';
 import { buttonGroups } from '../domain/default-profile';
 import { RemoteCommandType, ConnectionStatus, TVCapabilities } from '../domain/models';
 import { useSession, clearSession } from '../services/session-store';
@@ -31,6 +34,7 @@ export const RemoteControlScreen: React.FC = () => {
   // Get session state from global store
   const { device, session, status } = useSession();
   const [savedDeviceCount, setSavedDeviceCount] = useState(0);
+  const [activeTab, setActiveTab] = useState<RemoteTabType>('direction');
 
   debug.log('Rendering RemoteControlScreen');
   debug.log(`  Device: ${device?.name ?? 'none'}`);
@@ -75,6 +79,18 @@ export const RemoteControlScreen: React.FC = () => {
     await clearSession();
   }, []);
 
+  // Handle navigate to device discovery
+  const handleNavigateToDiscovery = useCallback(() => {
+    debug.log('Navigating to device discovery...');
+    router.push('/remote/discovery');
+  }, []);
+
+  // Handle tab change
+  const handleTabChange = useCallback((tab: RemoteTabType) => {
+    debug.log(`Switching to tab: ${tab}`);
+    setActiveTab(tab);
+  }, []);
+
   // Handle command press
   const handleCommand = useCallback(
     async (command: RemoteCommandType) => {
@@ -101,6 +117,19 @@ export const RemoteControlScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* Header with discovery icon */}
+      <View style={styles.header}>
+        <View style={styles.headerSpacer} />
+        <TouchableOpacity
+          style={styles.discoveryButton}
+          onPress={handleNavigateToDiscovery}
+          accessibilityLabel="发现设备"
+          accessibilityHint="点击进入设备发现页面"
+        >
+          <MaterialIcons name="cast" size={24} color="#fff" />
+        </TouchableOpacity>
+      </View>
+
       {/* Connection status bar with device switcher */}
       <ConnectionStatusBar
         device={device}
@@ -111,12 +140,15 @@ export const RemoteControlScreen: React.FC = () => {
         savedDeviceCount={savedDeviceCount}
       />
 
+      {/* Tab bar for switching between direction controls and number pad */}
+      <RemoteTabBar activeTab={activeTab} onTabChange={handleTabChange} />
+
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* System buttons row - capability-driven visibility */}
+        {/* System buttons row - always visible at top */}
         <View style={styles.buttonRow}>
           {buttonGroups.system.map((button) => (
             <RemoteButton
@@ -131,181 +163,146 @@ export const RemoteControlScreen: React.FC = () => {
           ))}
         </View>
 
-        {/* Navigation D-pad - always visible (core functionality) */}
-        <View style={styles.dpadContainer}>
-          {/* Up */}
-          <View style={styles.dpadRow}>
-            <RemoteButton
-              button={buttonGroups.navigation.find((b) => b.command === RemoteCommandType.Up)!}
-              onPress={handleCommand}
-              capabilities={capabilities}
-              isConnected={isConnected}
-              size="large"
-              shape="circle"
-            />
-          </View>
+        {/* Direction Controls Tab */}
+        {activeTab === 'direction' && (
+          <>
+            {/* Navigation D-pad - always visible (core functionality) */}
+            <View style={styles.dpadContainer}>
+              {/* Up */}
+              <View style={styles.dpadRow}>
+                <RemoteButton
+                  button={buttonGroups.navigation.find((b) => b.command === RemoteCommandType.Up)!}
+                  onPress={handleCommand}
+                  capabilities={capabilities}
+                  isConnected={isConnected}
+                  size="large"
+                  shape="circle"
+                />
+              </View>
 
-          {/* Left - Select - Right */}
-          <View style={styles.dpadRow}>
-            <RemoteButton
-              button={buttonGroups.navigation.find((b) => b.command === RemoteCommandType.Left)!}
-              onPress={handleCommand}
-              capabilities={capabilities}
-              isConnected={isConnected}
-              size="large"
-              shape="circle"
-            />
-            <RemoteButton
-              button={buttonGroups.navigation.find((b) => b.command === RemoteCommandType.Select)!}
-              onPress={handleCommand}
-              capabilities={capabilities}
-              isConnected={isConnected}
-              size="large"
-              shape="circle"
-              style={styles.selectButton}
-            />
-            <RemoteButton
-              button={buttonGroups.navigation.find((b) => b.command === RemoteCommandType.Right)!}
-              onPress={handleCommand}
-              capabilities={capabilities}
-              isConnected={isConnected}
-              size="large"
-              shape="circle"
-            />
-          </View>
+              {/* Left - Select - Right */}
+              <View style={styles.dpadRow}>
+                <RemoteButton
+                  button={
+                    buttonGroups.navigation.find((b) => b.command === RemoteCommandType.Left)!
+                  }
+                  onPress={handleCommand}
+                  capabilities={capabilities}
+                  isConnected={isConnected}
+                  size="large"
+                  shape="circle"
+                />
+                <RemoteButton
+                  button={
+                    buttonGroups.navigation.find((b) => b.command === RemoteCommandType.Select)!
+                  }
+                  onPress={handleCommand}
+                  capabilities={capabilities}
+                  isConnected={isConnected}
+                  size="large"
+                  shape="circle"
+                  style={styles.selectButton}
+                />
+                <RemoteButton
+                  button={
+                    buttonGroups.navigation.find((b) => b.command === RemoteCommandType.Right)!
+                  }
+                  onPress={handleCommand}
+                  capabilities={capabilities}
+                  isConnected={isConnected}
+                  size="large"
+                  shape="circle"
+                />
+              </View>
 
-          {/* Down */}
-          <View style={styles.dpadRow}>
-            <RemoteButton
-              button={buttonGroups.navigation.find((b) => b.command === RemoteCommandType.Down)!}
-              onPress={handleCommand}
-              capabilities={capabilities}
-              isConnected={isConnected}
-              size="large"
-              shape="circle"
-            />
-          </View>
-        </View>
+              {/* Down */}
+              <View style={styles.dpadRow}>
+                <RemoteButton
+                  button={
+                    buttonGroups.navigation.find((b) => b.command === RemoteCommandType.Down)!
+                  }
+                  onPress={handleCommand}
+                  capabilities={capabilities}
+                  isConnected={isConnected}
+                  size="large"
+                  shape="circle"
+                />
+              </View>
+            </View>
 
-        {/* Volume and channel controls - capability-driven visibility */}
-        <View style={styles.sideControlsContainer}>
-          {/* Volume */}
-          <View style={styles.sideControlColumn}>
-            {buttonGroups.volume.map((button) => (
-              <RemoteButton
-                key={button.id}
-                button={button}
-                onPress={handleCommand}
-                capabilities={capabilities}
-                isConnected={isConnected}
-                size="medium"
-                shape="rounded"
-              />
-            ))}
-          </View>
+            {/* Volume and channel controls - capability-driven visibility */}
+            <View style={styles.sideControlsContainer}>
+              {/* Volume */}
+              <View style={styles.sideControlColumn}>
+                {buttonGroups.volume.map((button) => (
+                  <RemoteButton
+                    key={button.id}
+                    button={button}
+                    onPress={handleCommand}
+                    capabilities={capabilities}
+                    isConnected={isConnected}
+                    size="medium"
+                    shape="rounded"
+                  />
+                ))}
+              </View>
 
-          {/* Channel */}
-          <View style={styles.sideControlColumn}>
-            {buttonGroups.channel.map((button) => (
-              <RemoteButton
-                key={button.id}
-                button={button}
-                onPress={handleCommand}
-                capabilities={capabilities}
-                isConnected={isConnected}
-                size="medium"
-                shape="rounded"
-              />
-            ))}
-          </View>
-        </View>
+              {/* Channel */}
+              <View style={styles.sideControlColumn}>
+                {buttonGroups.channel.map((button) => (
+                  <RemoteButton
+                    key={button.id}
+                    button={button}
+                    onPress={handleCommand}
+                    capabilities={capabilities}
+                    isConnected={isConnected}
+                    size="medium"
+                    shape="rounded"
+                  />
+                ))}
+              </View>
+            </View>
 
-        {/* Playback controls - always visible */}
-        <View style={styles.buttonRow}>
-          {buttonGroups.playback.map((button) => (
-            <RemoteButton
-              key={button.id}
-              button={button}
-              onPress={handleCommand}
-              capabilities={capabilities}
-              isConnected={isConnected}
-              size="medium"
-              shape="rounded"
-            />
-          ))}
-        </View>
+            {/* Playback controls - always visible */}
+            <View style={styles.buttonRow}>
+              {buttonGroups.playback.map((button) => (
+                <RemoteButton
+                  key={button.id}
+                  button={button}
+                  onPress={handleCommand}
+                  capabilities={capabilities}
+                  isConnected={isConnected}
+                  size="medium"
+                  shape="rounded"
+                />
+              ))}
+            </View>
 
-        {/* Menu buttons - always visible */}
-        <View style={styles.buttonRow}>
-          {buttonGroups.menu.map((button) => (
-            <RemoteButton
-              key={button.id}
-              button={button}
-              onPress={handleCommand}
-              capabilities={capabilities}
-              isConnected={isConnected}
-              size="medium"
-              shape="rounded"
-            />
-          ))}
-        </View>
+            {/* Menu buttons - always visible */}
+            <View style={styles.buttonRow}>
+              {buttonGroups.menu.map((button) => (
+                <RemoteButton
+                  key={button.id}
+                  button={button}
+                  onPress={handleCommand}
+                  capabilities={capabilities}
+                  isConnected={isConnected}
+                  size="medium"
+                  shape="rounded"
+                />
+              ))}
+            </View>
+          </>
+        )}
 
-        {/* Number pad - always visible */}
-        <View style={styles.numpadContainer}>
-          {/* Row 1: 1-2-3 */}
-          <View style={styles.numpadRow}>
-            {buttonGroups.numbers.slice(0, 3).map((button) => (
-              <RemoteButton
-                key={button.id}
-                button={button}
-                onPress={handleCommand}
-                capabilities={capabilities}
-                isConnected={isConnected}
-                size="medium"
-                shape="rounded"
-              />
-            ))}
-          </View>
-          {/* Row 2: 4-5-6 */}
-          <View style={styles.numpadRow}>
-            {buttonGroups.numbers.slice(3, 6).map((button) => (
-              <RemoteButton
-                key={button.id}
-                button={button}
-                onPress={handleCommand}
-                capabilities={capabilities}
-                isConnected={isConnected}
-                size="medium"
-                shape="rounded"
-              />
-            ))}
-          </View>
-          {/* Row 3: 7-8-9 */}
-          <View style={styles.numpadRow}>
-            {buttonGroups.numbers.slice(6, 9).map((button) => (
-              <RemoteButton
-                key={button.id}
-                button={button}
-                onPress={handleCommand}
-                capabilities={capabilities}
-                isConnected={isConnected}
-                size="medium"
-                shape="rounded"
-              />
-            ))}
-          </View>
-          {/* Row 4: 0 (centered) */}
-          <View style={styles.numpadRow}>
-            <RemoteButton
-              button={buttonGroups.numbers[9]}
-              onPress={handleCommand}
-              capabilities={capabilities}
-              isConnected={isConnected}
-              size="medium"
-              shape="rounded"
-            />
-          </View>
-        </View>
+        {/* Number Pad Tab */}
+        {activeTab === 'numbers' && (
+          <NumberPad
+            onCommand={handleCommand}
+            capabilities={capabilities}
+            isConnected={isConnected}
+          />
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -315,6 +312,24 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#121212',
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  headerSpacer: {
+    width: 40,
+  },
+  discoveryButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#2a2a2a',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   scrollView: {
     flex: 1,

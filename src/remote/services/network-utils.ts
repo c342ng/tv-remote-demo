@@ -265,8 +265,12 @@ export async function getSubnetsToScan(): Promise<SubnetInfo[]> {
 export const FALLBACK_SUBNET_PREFIXES = [
   '192.168.1.',   // Most common home router default
   '192.168.0.',   // Common alternative (Netgear, TP-Link, etc.)
+  '192.168.2.',   // Some routers use this
   '10.0.0.',      // Apple AirPort, some enterprise
   '10.0.1.',      // Apple AirPort alternative
+  '10.13.12.',    // Common enterprise/VPN subnet
+  '172.16.0.',    // Class B private
+  '172.16.1.',    // Class B private alternative
 ];
 
 /**

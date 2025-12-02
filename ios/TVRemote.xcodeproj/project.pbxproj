@@ -7,12 +7,12 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		06BAB849EED3AFC4E6480F13 /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA77CB911C710016D720E160 /* ExpoModulesProvider.swift */; };
 		13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
+		26FEBE06F7B05A7389A72D9D /* libPods-TVRemote.a in Frameworks */ = {isa = PBXBuildFile; fileRef = EE8EDA326489BC7540A0E4EE /* libPods-TVRemote.a */; };
 		3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */; };
-		723A20E4E04F888B73A5B948 /* libPods-TVRemote.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 75ABAB7E223743B604EA6259 /* libPods-TVRemote.a */; };
-		AC48A0D126A181DD008F2C58 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = BAECEEBCAA5B9C493D4229EF /* PrivacyInfo.xcprivacy */; };
 		BB2F792D24A3F905000567C9 /* Expo.plist in Resources */ = {isa = PBXBuildFile; fileRef = BB2F792C24A3F905000567C9 /* Expo.plist */; };
+		C084FC96D046A4A2F4684CE2 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 2D77E13EECADCFFFA7ACC896 /* PrivacyInfo.xcprivacy */; };
+		C58C6807EDDE98BD54B82124 /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 31422B682E8F35B599F99725 /* ExpoModulesProvider.swift */; };
 		F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F11748412D0307B40044C1D9 /* AppDelegate.swift */; };
 /* End PBXBuildFile section */
 
@@ -20,16 +20,16 @@
 		13B07F961A680F5B00A75B9A /* TVRemote.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TVRemote.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		13B07FB51A68108700A75B9A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = TVRemote/Images.xcassets; sourceTree = "<group>"; };
 		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = TVRemote/Info.plist; sourceTree = "<group>"; };
-		5662389FB076D78BEA6BA743 /* Pods-TVRemote.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-TVRemote.release.xcconfig"; path = "Target Support Files/Pods-TVRemote/Pods-TVRemote.release.xcconfig"; sourceTree = "<group>"; };
-		75ABAB7E223743B604EA6259 /* libPods-TVRemote.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-TVRemote.a"; sourceTree = BUILT_PRODUCTS_DIR; };
-		97671AB4EF54623DDE671E88 /* Pods-TVRemote.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-TVRemote.debug.xcconfig"; path = "Target Support Files/Pods-TVRemote/Pods-TVRemote.debug.xcconfig"; sourceTree = "<group>"; };
+		2D77E13EECADCFFFA7ACC896 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xml; name = PrivacyInfo.xcprivacy; path = TVRemote/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		31422B682E8F35B599F99725 /* ExpoModulesProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpoModulesProvider.swift; path = "Pods/Target Support Files/Pods-TVRemote/ExpoModulesProvider.swift"; sourceTree = "<group>"; };
+		4B0949A2C255EFD4555C2AEF /* Pods-TVRemote.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-TVRemote.debug.xcconfig"; path = "Target Support Files/Pods-TVRemote/Pods-TVRemote.debug.xcconfig"; sourceTree = "<group>"; };
 		AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = SplashScreen.storyboard; path = TVRemote/SplashScreen.storyboard; sourceTree = "<group>"; };
-		BAECEEBCAA5B9C493D4229EF /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xml; name = PrivacyInfo.xcprivacy; path = TVRemote/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		BB2F792C24A3F905000567C9 /* Expo.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Expo.plist; sourceTree = "<group>"; };
+		E49E2823BB6228F91EBE02F9 /* Pods-TVRemote.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-TVRemote.release.xcconfig"; path = "Target Support Files/Pods-TVRemote/Pods-TVRemote.release.xcconfig"; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
+		EE8EDA326489BC7540A0E4EE /* libPods-TVRemote.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-TVRemote.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 		F11748412D0307B40044C1D9 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = TVRemote/AppDelegate.swift; sourceTree = "<group>"; };
 		F11748442D0722820044C1D9 /* TVRemote-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = "TVRemote-Bridging-Header.h"; path = "TVRemote/TVRemote-Bridging-Header.h"; sourceTree = "<group>"; };
-		FA77CB911C710016D720E160 /* ExpoModulesProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpoModulesProvider.swift; path = "Pods/Target Support Files/Pods-TVRemote/ExpoModulesProvider.swift"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -37,13 +37,30 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				723A20E4E04F888B73A5B948 /* libPods-TVRemote.a in Frameworks */,
+				26FEBE06F7B05A7389A72D9D /* libPods-TVRemote.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		031B4695D638B1ABD709E9E6 /* Pods */ = {
+			isa = PBXGroup;
+			children = (
+				4B0949A2C255EFD4555C2AEF /* Pods-TVRemote.debug.xcconfig */,
+				E49E2823BB6228F91EBE02F9 /* Pods-TVRemote.release.xcconfig */,
+			);
+			path = Pods;
+			sourceTree = "<group>";
+		};
+		0C80454E2EE1FB02616139BF /* TVRemote */ = {
+			isa = PBXGroup;
+			children = (
+				31422B682E8F35B599F99725 /* ExpoModulesProvider.swift */,
+			);
+			name = TVRemote;
+			sourceTree = "<group>";
+		};
 		13B07FAE1A68108700A75B9A /* TVRemote */ = {
 			isa = PBXGroup;
 			children = (
@@ -53,43 +70,18 @@
 				13B07FB51A68108700A75B9A /* Images.xcassets */,
 				13B07FB61A68108700A75B9A /* Info.plist */,
 				AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */,
-				BAECEEBCAA5B9C493D4229EF /* PrivacyInfo.xcprivacy */,
+				2D77E13EECADCFFFA7ACC896 /* PrivacyInfo.xcprivacy */,
 			);
 			name = TVRemote;
-			sourceTree = "<group>";
-		};
-		1A8F898FE6793E3D039E18C9 /* TVRemote */ = {
-			isa = PBXGroup;
-			children = (
-				FA77CB911C710016D720E160 /* ExpoModulesProvider.swift */,
-			);
-			name = TVRemote;
-			sourceTree = "<group>";
-		};
-		27BCC24821C5DD9080C0098A /* Pods */ = {
-			isa = PBXGroup;
-			children = (
-				97671AB4EF54623DDE671E88 /* Pods-TVRemote.debug.xcconfig */,
-				5662389FB076D78BEA6BA743 /* Pods-TVRemote.release.xcconfig */,
-			);
-			path = Pods;
 			sourceTree = "<group>";
 		};
 		2D16E6871FA4F8E400B85C8A /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
 				ED297162215061F000B7C4FE /* JavaScriptCore.framework */,
-				75ABAB7E223743B604EA6259 /* libPods-TVRemote.a */,
+				EE8EDA326489BC7540A0E4EE /* libPods-TVRemote.a */,
 			);
 			name = Frameworks;
-			sourceTree = "<group>";
-		};
-		3BB455C6F6B98591F57CA9D1 /* ExpoModulesProviders */ = {
-			isa = PBXGroup;
-			children = (
-				1A8F898FE6793E3D039E18C9 /* TVRemote */,
-			);
-			name = ExpoModulesProviders;
 			sourceTree = "<group>";
 		};
 		832341AE1AAA6A7D00B99B32 /* Libraries */ = {
@@ -106,8 +98,8 @@
 				832341AE1AAA6A7D00B99B32 /* Libraries */,
 				83CBBA001A601CBA00E9B192 /* Products */,
 				2D16E6871FA4F8E400B85C8A /* Frameworks */,
-				27BCC24821C5DD9080C0098A /* Pods */,
-				3BB455C6F6B98591F57CA9D1 /* ExpoModulesProviders */,
+				031B4695D638B1ABD709E9E6 /* Pods */,
+				FF3C1D28397F8E4755E96077 /* ExpoModulesProviders */,
 			);
 			indentWidth = 2;
 			sourceTree = "<group>";
@@ -131,6 +123,14 @@
 			path = TVRemote/Supporting;
 			sourceTree = "<group>";
 		};
+		FF3C1D28397F8E4755E96077 /* ExpoModulesProviders */ = {
+			isa = PBXGroup;
+			children = (
+				0C80454E2EE1FB02616139BF /* TVRemote */,
+			);
+			name = ExpoModulesProviders;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -139,13 +139,13 @@
 			buildConfigurationList = 13B07F931A680F5B00A75B9A /* Build configuration list for PBXNativeTarget "TVRemote" */;
 			buildPhases = (
 				08A4A3CD28434E44B6B9DE2E /* [CP] Check Pods Manifest.lock */,
-				B488890ABE0CFE5DD6C17748 /* [Expo] Configure project */,
+				18BE0C38D60400E3930BA3EB /* [Expo] Configure project */,
 				13B07F871A680F5B00A75B9A /* Sources */,
 				13B07F8C1A680F5B00A75B9A /* Frameworks */,
 				13B07F8E1A680F5B00A75B9A /* Resources */,
 				00DD1BFF1BD5951E006B06BC /* Bundle React Native code and images */,
 				800E24972A6A228C8D4807E9 /* [CP] Copy Pods Resources */,
-				CF45477BEC3CBCABFE18E28C /* [CP] Embed Pods Frameworks */,
+				795F1619320473ED0E6DC6EB /* [CP] Embed Pods Frameworks */,
 			);
 			buildRules = (
 			);
@@ -195,7 +195,7 @@
 				BB2F792D24A3F905000567C9 /* Expo.plist in Resources */,
 				13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */,
 				3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */,
-				AC48A0D126A181DD008F2C58 /* PrivacyInfo.xcprivacy in Resources */,
+				C084FC96D046A4A2F4684CE2 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -241,6 +241,52 @@
 			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
 			showEnvVarsInLog = 0;
 		};
+		18BE0C38D60400E3930BA3EB /* [Expo] Configure project */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"$(SRCROOT)/.xcode.env",
+				"$(SRCROOT)/.xcode.env.local",
+				"$(SRCROOT)/TVRemote/TVRemote.entitlements",
+				"$(SRCROOT)/Pods/Target Support Files/Pods-TVRemote/expo-configure-project.sh",
+			);
+			name = "[Expo] Configure project";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(SRCROOT)/Pods/Target Support Files/Pods-TVRemote/ExpoModulesProvider.swift",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "# This script configures Expo modules and generates the modules provider file.\nbash -l -c \"./Pods/Target\\ Support\\ Files/Pods-TVRemote/expo-configure-project.sh\"\n";
+		};
+		795F1619320473ED0E6DC6EB /* [CP] Embed Pods Frameworks */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+				"${PODS_ROOT}/Target Support Files/Pods-TVRemote/Pods-TVRemote-frameworks.sh",
+				"${PODS_XCFRAMEWORKS_BUILD_DIR}/React-Core-prebuilt/React.framework/React",
+				"${PODS_XCFRAMEWORKS_BUILD_DIR}/ReactNativeDependencies/ReactNativeDependencies.framework/ReactNativeDependencies",
+				"${PODS_XCFRAMEWORKS_BUILD_DIR}/hermes-engine/Pre-built/hermes.framework/hermes",
+			);
+			name = "[CP] Embed Pods Frameworks";
+			outputPaths = (
+				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/React.framework",
+				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/ReactNativeDependencies.framework",
+				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/hermes.framework",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-TVRemote/Pods-TVRemote-frameworks.sh\"\n";
+			showEnvVarsInLog = 0;
+		};
 		800E24972A6A228C8D4807E9 /* [CP] Copy Pods Resources */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
@@ -273,52 +319,6 @@
 			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-TVRemote/Pods-TVRemote-resources.sh\"\n";
 			showEnvVarsInLog = 0;
 		};
-		B488890ABE0CFE5DD6C17748 /* [Expo] Configure project */ = {
-			isa = PBXShellScriptBuildPhase;
-			alwaysOutOfDate = 1;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-			);
-			inputPaths = (
-				"$(SRCROOT)/.xcode.env",
-				"$(SRCROOT)/.xcode.env.local",
-				"$(SRCROOT)/TVRemote/TVRemote.entitlements",
-				"$(SRCROOT)/Pods/Target Support Files/Pods-TVRemote/expo-configure-project.sh",
-			);
-			name = "[Expo] Configure project";
-			outputFileListPaths = (
-			);
-			outputPaths = (
-				"$(SRCROOT)/Pods/Target Support Files/Pods-TVRemote/ExpoModulesProvider.swift",
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "# This script configures Expo modules and generates the modules provider file.\nbash -l -c \"./Pods/Target\\ Support\\ Files/Pods-TVRemote/expo-configure-project.sh\"\n";
-		};
-		CF45477BEC3CBCABFE18E28C /* [CP] Embed Pods Frameworks */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputPaths = (
-				"${PODS_ROOT}/Target Support Files/Pods-TVRemote/Pods-TVRemote-frameworks.sh",
-				"${PODS_XCFRAMEWORKS_BUILD_DIR}/React-Core-prebuilt/React.framework/React",
-				"${PODS_XCFRAMEWORKS_BUILD_DIR}/ReactNativeDependencies/ReactNativeDependencies.framework/ReactNativeDependencies",
-				"${PODS_XCFRAMEWORKS_BUILD_DIR}/hermes-engine/Pre-built/hermes.framework/hermes",
-			);
-			name = "[CP] Embed Pods Frameworks";
-			outputPaths = (
-				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/React.framework",
-				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/ReactNativeDependencies.framework",
-				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/hermes.framework",
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-TVRemote/Pods-TVRemote-frameworks.sh\"\n";
-			showEnvVarsInLog = 0;
-		};
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -327,7 +327,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */,
-				06BAB849EED3AFC4E6480F13 /* ExpoModulesProvider.swift in Sources */,
+				C58C6807EDDE98BD54B82124 /* ExpoModulesProvider.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -336,7 +336,7 @@
 /* Begin XCBuildConfiguration section */
 		13B07F941A680F5B00A75B9A /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 97671AB4EF54623DDE671E88 /* Pods-TVRemote.debug.xcconfig */;
+			baseConfigurationReference = 4B0949A2C255EFD4555C2AEF /* Pods-TVRemote.debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
@@ -373,7 +373,7 @@
 		};
 		13B07F951A680F5B00A75B9A /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 5662389FB076D78BEA6BA743 /* Pods-TVRemote.release.xcconfig */;
+			baseConfigurationReference = E49E2823BB6228F91EBE02F9 /* Pods-TVRemote.release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;

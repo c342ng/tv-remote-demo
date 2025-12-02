@@ -1,2 +1,7 @@
+// Platform adapters
 export { RokuAdapter } from './roku-adapter';
-export { getAdapter } from './factory';
+export { AndroidTVAdapter } from './android-tv-adapter';
+export { FireTVAdapter } from './fire-tv-adapter';
+
+// Factory
+export { getAdapter, getAllAdapters, isAdapterAvailable } from './factory';

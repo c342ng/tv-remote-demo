@@ -1,6 +1,8 @@
 /**
  * DeviceDiscoveryScreen - Scan and select TV devices
  * Supports scanning, manual entry, and device connection
+ * 
+ * Updated to use aggregated discovery for multi-platform simultaneous search
  */
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
@@ -27,8 +29,14 @@ import {
   ConnectionStatus,
 } from '../domain/models';
 import { DiscoveredDevice, TVSession } from '../domain/remote-interfaces';
-import { getAdapter } from '../protocols/factory';
+import { getAdapter, isAdapterAvailable } from '../protocols/factory';
 import { setSession } from '../services/session-store';
+import { 
+  discoverAllDevices, 
+  getSupportedPlatforms,
+  AggregatedDiscoveryResult 
+} from '../services/aggregated-discovery';
+import { getDeviceNetworkInfo } from '../services/network-utils';
 
 /** Debug logger for discovery screen */
 const DEBUG_TAG = '[DeviceDiscovery]';
@@ -52,60 +60,117 @@ export const DeviceDiscoveryScreen: React.FC = () => {
   const [showManualEntry, setShowManualEntry] = useState(false);
   const [manualIp, setManualIp] = useState('');
   const [selectedPlatform, setSelectedPlatform] = useState<TVPlatform>(TVPlatform.Roku);
+  
+  // Network info for debugging
+  const [networkIp, setNetworkIp] = useState<string | null>(null);
 
   // Session ref for cleanup (only used for sessions not stored globally)
   const sessionRef = useRef<TVSession | null>(null);
 
+  // Track seen device IDs to prevent duplicates during real-time updates
+  const seenDeviceIdsRef = useRef<Set<string>>(new Set());
+
   // Note: We don't cleanup session on unmount because it's stored in global store
   // and will be used by RemoteControlScreen
 
-  // Start device discovery
+  // Helper function to convert DiscoveredDevice to TVDevice
+  const convertToTVDevice = useCallback((d: DiscoveredDevice): TVDevice => ({
+    id: d.id,
+    name: d.name,
+    platform: d.platform,
+    ipAddress: d.ipAddress,
+    port: d.port,
+    modelName: undefined,
+    capabilities: {
+      powerControl: true,
+      volumeControl: true,
+      channelControl: false,
+      voiceInput: false,
+      keyboard: true,
+      apps: true,
+    },
+  }), []);
+
+  // Start device discovery (multi-platform)
   const handleScan = useCallback(async () => {
-    debug.log('Starting device scan...');
+    debug.log('Starting multi-platform device scan...');
     setIsScanning(true);
     setDevices([]);
+    seenDeviceIdsRef.current.clear();
+
+    // Get and display network info first
+    try {
+      const netInfo = await getDeviceNetworkInfo();
+      if (netInfo) {
+        setNetworkIp(netInfo.ipAddress);
+        debug.log(`Phone IP: ${netInfo.ipAddress}, Subnet: ${netInfo.subnetMask}`);
+      }
+    } catch (e) {
+      debug.error('Failed to get network info:', e);
+    }
 
     try {
-      // Get Roku adapter and scan
-      debug.log('Getting Roku adapter...');
-      const rokuAdapter = getAdapter(TVPlatform.Roku);
+      // Use aggregated discovery for all supported platforms
+      const supportedPlatforms = getSupportedPlatforms();
+      debug.log(`Supported platforms: ${supportedPlatforms.join(', ')}`);
       
-      debug.log('Starting discovery...');
+      debug.log('Starting aggregated discovery...');
       const startTime = Date.now();
-      const discoveredDevices = await rokuAdapter.discover();
+      
+      // Use onDeviceFound callback for real-time UI updates
+      const result: AggregatedDiscoveryResult = await discoverAllDevices({
+        timeoutMs: 5000,
+        platforms: supportedPlatforms,
+        onDeviceFound: (device: DiscoveredDevice) => {
+          // Deduplicate based on device ID
+          if (!seenDeviceIdsRef.current.has(device.id)) {
+            seenDeviceIdsRef.current.add(device.id);
+            const tvDevice = convertToTVDevice(device);
+            debug.log(`[Real-time] Adding device: ${device.name} at ${device.ipAddress}`);
+            setDevices(prev => [...prev, tvDevice]);
+          }
+        },
+      });
+      
       const elapsed = Date.now() - startTime;
       
-      debug.log(`Discovery completed in ${elapsed}ms`);
-      debug.log(`Found ${discoveredDevices.length} device(s)`);
+      debug.log(`Discovery completed in ${elapsed}ms (reported: ${result.durationMs}ms)`);
+      debug.log(`Found ${result.devices.length} device(s) total`);
+      
+      // Log platform breakdown
+      for (const [platform, platformDevices] of result.byPlatform.entries()) {
+        if (platformDevices.length > 0) {
+          debug.log(`  ${platform}: ${platformDevices.length} device(s)`);
+        }
+      }
+      
+      // Log any errors
+      if (result.errors.length > 0) {
+        debug.warn(`Discovery had ${result.errors.length} error(s):`);
+        result.errors.forEach(e => debug.warn(`  ${e.platform}: ${e.error.message}`));
+      }
 
-      // Convert discovered devices to TVDevice
-      const tvDevices: TVDevice[] = discoveredDevices.map((d) => {
-        debug.log(`Processing device: ${d.name} (${d.id}) at ${d.ipAddress}:${d.port}`);
-        return {
-          id: d.id,
-          name: d.name,
-          platform: d.platform,
-          ipAddress: d.ipAddress,
-          port: d.port,
-          modelName: undefined,
-          capabilities: {
-            powerControl: true,
-            volumeControl: true,
-            channelControl: false,
-            voiceInput: false,
-            keyboard: true,
-            apps: true,
-          },
-        };
+      // Final check - ensure all devices are in the list
+      // (in case any were missed by the real-time callback)
+      setDevices(prev => {
+        const existingIds = new Set(prev.map(d => d.id));
+        const newDevices = result.devices
+          .filter(d => !existingIds.has(d.id))
+          .map(convertToTVDevice);
+        
+        if (newDevices.length > 0) {
+          debug.log(`Adding ${newDevices.length} missed device(s)`);
+          return [...prev, ...newDevices];
+        }
+        return prev;
       });
 
-      setDevices(tvDevices);
-
-      if (tvDevices.length === 0) {
+      // Show alert only if no devices found
+      if (result.devices.length === 0) {
         debug.warn('No devices found');
         Alert.alert(
           '未发现设备',
-          '请确保您的电视已开启并连接到同一 Wi-Fi 网络。\n\n提示：扫描可能需要较长时间，您也可以尝试手动添加设备。',
+          '请确保您的电视已开启并连接到同一 Wi-Fi 网络。\n\n支持的平台：Roku、Android TV、Fire TV\n\n提示：扫描可能需要较长时间，您也可以尝试手动添加设备。',
           [
             { text: '重试', onPress: handleScan },
             { text: '手动添加', onPress: () => setShowManualEntry(true) },
@@ -113,7 +178,7 @@ export const DeviceDiscoveryScreen: React.FC = () => {
           ]
         );
       } else {
-        debug.log(`Successfully found ${tvDevices.length} device(s)`);
+        debug.log(`Successfully found ${result.devices.length} device(s)`);
       }
     } catch (error) {
       debug.error('Discovery failed:', error);
@@ -122,7 +187,7 @@ export const DeviceDiscoveryScreen: React.FC = () => {
       setIsScanning(false);
       debug.log('Scan completed');
     }
-  }, []);
+  }, [convertToTVDevice]);
 
   // Auto-scan on mount
   useEffect(() => {
@@ -210,17 +275,22 @@ export const DeviceDiscoveryScreen: React.FC = () => {
 
     const manualDevice: TVDevice = {
       id: `manual-${manualIp}-${Date.now()}`,
-      name: `${selectedPlatform} (${manualIp})`,
+      name: `${selectedPlatform === TVPlatform.AndroidTV ? 'Android TV' : 
+             selectedPlatform === TVPlatform.FireTV ? 'Fire TV' : 
+             selectedPlatform} (${manualIp})`,
       platform: selectedPlatform,
       ipAddress: manualIp.trim(),
-      port: selectedPlatform === TVPlatform.Roku ? 8060 : 8080,
+      // Default ports per platform
+      port: selectedPlatform === TVPlatform.Roku ? 8060 : 
+            selectedPlatform === TVPlatform.AndroidTV ? 5555 :
+            selectedPlatform === TVPlatform.FireTV ? 5555 : 8080,
       capabilities: {
         powerControl: true,
         volumeControl: true,
         channelControl: false,
         voiceInput: false,
         keyboard: true,
-        apps: false,
+        apps: selectedPlatform === TVPlatform.Roku,
       },
     };
 
@@ -267,6 +337,9 @@ export const DeviceDiscoveryScreen: React.FC = () => {
         <View style={styles.scanningContainer}>
           <ActivityIndicator size="large" color="#4CAF50" />
           <Text style={styles.scanningText}>正在扫描网络...</Text>
+          {networkIp && (
+            <Text style={styles.networkIpText}>手机 IP: {networkIp}</Text>
+          )}
         </View>
       )}
 
@@ -324,7 +397,7 @@ export const DeviceDiscoveryScreen: React.FC = () => {
               {/* Platform selector */}
               <Text style={styles.inputLabel}>平台</Text>
               <View style={styles.platformSelector}>
-                {[TVPlatform.Roku].map((platform) => (
+                {[TVPlatform.Roku, TVPlatform.AndroidTV, TVPlatform.FireTV].map((platform) => (
                   <Pressable
                     key={platform}
                     style={[
@@ -339,7 +412,9 @@ export const DeviceDiscoveryScreen: React.FC = () => {
                         selectedPlatform === platform && styles.platformOptionTextSelected,
                       ]}
                     >
-                      {platform}
+                      {platform === TVPlatform.AndroidTV ? 'Android TV' : 
+                       platform === TVPlatform.FireTV ? 'Fire TV' : 
+                       platform}
                     </Text>
                   </Pressable>
                 ))}
@@ -423,6 +498,12 @@ const styles = StyleSheet.create({
     color: '#888',
     fontSize: 14,
     marginTop: 12,
+  },
+  networkIpText: {
+    color: '#4CAF50',
+    fontSize: 12,
+    marginTop: 8,
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
   },
   listContent: {
     paddingVertical: 12,

@@ -178,7 +178,7 @@ export class RokuAdapter implements PlatformAdapter {
    * - Running in Expo Go (no native module support)
    * - Network doesn't support multicast
    */
-  async discover(timeoutMs = 20000): Promise<DiscoveredDevice[]> {
+  async discover(timeoutMs = 3000): Promise<DiscoveredDevice[]> {
     debug.log('Starting device discovery...');
     debug.log(`Timeout: ${timeoutMs}ms`);
     

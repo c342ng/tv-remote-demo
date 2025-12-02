@@ -2,7 +2,8 @@
  * Roku ECP (External Control Protocol) adapter
  *
  * This adapter uses the official Roku ECP over HTTP to:
- * - Discover Roku devices via SSDP (roku:ecp)
+ * - Discover Roku devices via SSDP (roku:ecp) - preferred, ~1 second
+ * - Fallback to subnet scanning if SSDP fails
  * - Send keypress commands
  *
  * Reference: https://developer.roku.com/docs/developer-program/debugging/external-control-api.md
@@ -16,13 +17,13 @@ import type {
 } from '../domain/remote-interfaces';
 import {
   TVDevice,
-  TVCapabilities,
   ConnectionStatus,
   RemoteCommandType,
   TVPlatform,
   SessionErrorCode,
 } from '../domain/models';
 import { getSubnetsToScan, getDeviceNetworkInfo, SubnetInfo } from '../services/network-utils';
+import { discoverRokuViaSsdp, isSsdpSupported } from '../services/ssdp-discovery';
 
 /** Debug logger for Roku adapter */
 const DEBUG_TAG = '[RokuAdapter]';
@@ -157,24 +158,65 @@ export class RokuAdapter implements PlatformAdapter {
   private _status: ConnectionStatus = ConnectionStatus.Idle;
 
   // ─────────────────────────────────────────────────────────────────────────
-  // Discovery via HTTP probe (with dynamic subnet detection)
+  // Discovery - SSDP preferred, HTTP probe fallback
   // ─────────────────────────────────────────────────────────────────────────
 
   /**
    * Discover Roku devices on the local network.
    *
-   * This implementation:
-   * 1. Gets the device's current IP and determines the local subnet
-   * 2. Scans that subnet for Roku devices on port 8060 (ECP default)
-   * 3. Falls back to common subnet prefixes if network info unavailable
+   * Discovery strategy (optimized for speed):
+   * 1. Try SSDP discovery first (fast, ~1 second)
+   * 2. If SSDP fails or returns no devices, fall back to subnet scanning
    *
-   * NOTE: For true SSDP discovery, a native module would be needed.
+   * SSDP is preferred because:
+   * - Much faster (~1s vs ~6s for subnet scanning)
+   * - More reliable (uses Roku's official discovery protocol)
+   * - Less network traffic
+   *
+   * Subnet scanning is used as fallback when:
+   * - SSDP is blocked by firewall
+   * - Running in Expo Go (no native module support)
+   * - Network doesn't support multicast
    */
-  async discover(timeoutMs = 3000): Promise<DiscoveredDevice[]> {
+  async discover(timeoutMs = 20000): Promise<DiscoveredDevice[]> {
     debug.log('Starting device discovery...');
-    debug.log(`Timeout per probe: ${timeoutMs}ms`);
+    debug.log(`Timeout: ${timeoutMs}ms`);
     
     this._status = ConnectionStatus.Discovering;
+
+    // Try SSDP discovery first (preferred method)
+    if (isSsdpSupported()) {
+      debug.log('SSDP is supported, trying SSDP discovery first...');
+      
+      try {
+        const ssdpDevices = await discoverRokuViaSsdp(timeoutMs);
+        
+        if (ssdpDevices.length > 0) {
+          debug.log(`SSDP discovery successful! Found ${ssdpDevices.length} device(s)`);
+          this._status = ConnectionStatus.Idle;
+          return ssdpDevices;
+        }
+        
+        debug.log('SSDP discovery returned no devices, falling back to subnet scanning');
+      } catch (err) {
+        debug.warn('SSDP discovery failed, falling back to subnet scanning:', err);
+      }
+    } else {
+      debug.log('SSDP not supported (likely Expo Go), using subnet scanning');
+    }
+
+    // Fallback: Subnet scanning (slower but works without native modules)
+    return this.discoverViaSubnetScan(timeoutMs);
+  }
+
+  /**
+   * Discover devices by scanning local subnets (fallback method)
+   * 
+   * This is slower than SSDP but works in all environments including Expo Go.
+   */
+  private async discoverViaSubnetScan(timeoutMs: number): Promise<DiscoveredDevice[]> {
+    debug.log('Starting subnet scan discovery...');
+    
     const discovered: DiscoveredDevice[] = [];
     
     // Get network info for logging

@@ -9,7 +9,6 @@ import {
   StyleSheet,
   FlatList,
   Pressable,
-  SafeAreaView,
   ActivityIndicator,
   Alert,
   TextInput,
@@ -19,6 +18,7 @@ import {
   ScrollView,
   Keyboard,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { DeviceListItem } from './DeviceListItem';
 import {

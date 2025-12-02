@@ -3,6 +3,9 @@
  * Provides functions to get device network info and calculate subnet ranges
  *
  * Uses react-native-network-info for accurate subnet mask information
+ *
+ * Updated: Removed hardcoded fallback subnets, dynamic calculation based on
+ * actual network configuration with priority-based scanning blocks.
  */
 
 import { NetworkInfo } from 'react-native-network-info';
@@ -39,6 +42,18 @@ export interface SubnetInfo {
   isPrimary: boolean;
   /** Priority for scanning (lower = higher priority) */
   priority: number;
+}
+
+/**
+ * Scan block with priority for ordered scanning
+ */
+export interface ScanBlock {
+  /** /24 subnet prefix (e.g., "192.168.1.") */
+  prefix: string;
+  /** Priority (1 = highest, phone IP block; 2 = gateway block; higher = further away) */
+  priority: number;
+  /** Distance from phone's /24 block (0 = same block) */
+  distance: number;
 }
 
 /**
@@ -145,8 +160,9 @@ export async function getDeviceNetworkInfo(): Promise<DeviceNetworkInfo | null> 
 
 /**
  * Generate all /24 subnet prefixes within a larger subnet
- * For example, if device is at 10.13.12.45/16, generate:
- * - 10.13.0., 10.13.1., ..., 10.13.255.
+ *
+ * UPDATED: Now generates ALL /24 blocks within the subnet mask range,
+ * without arbitrary limits for large networks.
  *
  * @param ipAddress Device IP address
  * @param cidrPrefix CIDR prefix length (e.g., 16, 24)
@@ -162,21 +178,23 @@ export function generateSubnetPrefixes(ipAddress: string, cidrPrefix: number): s
     prefixes.push(`${parts[0]}.${parts[1]}.${parts[2]}.`);
   } else if (cidrPrefix >= 16) {
     // /16 to /23 - scan all /24 subnets within
-    // For /16: 256 subnets (0-255)
-    // For /20: 16 subnets
     const numSubnets = Math.pow(2, 24 - cidrPrefix);
     const startThirdOctet = parts[2] & (256 - numSubnets); // Align to subnet boundary
 
     for (let i = 0; i < numSubnets && i < 256; i++) {
       prefixes.push(`${parts[0]}.${parts[1]}.${startThirdOctet + i}.`);
     }
-  } else {
-    // /8 to /15 - too large, just scan a few adjacent subnets
-    // Scan current /24 + adjacent ones
-    for (let delta = -2; delta <= 2; delta++) {
-      const thirdOctet = parts[2] + delta;
-      if (thirdOctet >= 0 && thirdOctet <= 255) {
-        prefixes.push(`${parts[0]}.${parts[1]}.${thirdOctet}.`);
+  } else if (cidrPrefix >= 8) {
+    // /8 to /15 - generate all /24 blocks within the network range
+    // For /8: 256 * 256 = 65536 subnets (too many)
+    // For /12: 16 * 256 = 4096 subnets
+    // For practical purposes, generate all blocks but let caller prioritize
+    const numSecondOctets = Math.pow(2, 16 - cidrPrefix);
+    const startSecondOctet = parts[1] & (256 - numSecondOctets);
+
+    for (let j = 0; j < numSecondOctets && j < 256; j++) {
+      for (let i = 0; i < 256; i++) {
+        prefixes.push(`${parts[0]}.${startSecondOctet + j}.${i}.`);
       }
     }
   }
@@ -185,95 +203,181 @@ export function generateSubnetPrefixes(ipAddress: string, cidrPrefix: number): s
 }
 
 /**
- * Get subnets to scan in priority order:
- * 1. All /24 subnets within the device's actual subnet (based on mask) - highest priority
- * 2. Common fallback subnets
+ * Generate scan blocks with priority ordering
+ *
+ * Priority strategy:
+ * - Priority 1: Phone's current /24 block
+ * - Priority 2: Gateway's /24 block (if different from phone)
+ * - Priority 3+: Other blocks, ordered by distance from phone's block
+ *
+ * @param ipAddress Device IP address
+ * @param cidrPrefix CIDR prefix length
+ * @param gatewayIp Gateway IP address (optional)
+ * @returns Array of scan blocks sorted by priority
+ */
+export function generateScanBlocks(
+  ipAddress: string,
+  cidrPrefix: number,
+  gatewayIp?: string | null
+): ScanBlock[] {
+  const parts = ipAddress.split('.').map((p) => parseInt(p, 10));
+  if (parts.length !== 4) return [];
+
+  const phoneThirdOctet = parts[2];
+  const phonePrefix = `${parts[0]}.${parts[1]}.${phoneThirdOctet}.`;
+
+  // Get gateway's third octet if available
+  let gatewayThirdOctet: number | null = null;
+  let gatewayPrefix: string | null = null;
+  if (gatewayIp) {
+    const gwParts = gatewayIp.split('.').map((p) => parseInt(p, 10));
+    if (gwParts.length === 4 && gwParts[0] === parts[0] && gwParts[1] === parts[1]) {
+      gatewayThirdOctet = gwParts[2];
+      gatewayPrefix = `${gwParts[0]}.${gwParts[1]}.${gatewayThirdOctet}.`;
+    }
+  }
+
+  const blocks: ScanBlock[] = [];
+
+  if (cidrPrefix >= 24) {
+    // /24 or smaller - only one block
+    blocks.push({
+      prefix: phonePrefix,
+      priority: 1,
+      distance: 0,
+    });
+  } else if (cidrPrefix >= 16) {
+    // /16 to /23 - multiple /24 blocks
+    const numSubnets = Math.pow(2, 24 - cidrPrefix);
+    const startThirdOctet = parts[2] & (256 - numSubnets);
+
+    for (let i = 0; i < numSubnets && i < 256; i++) {
+      const thirdOctet = startThirdOctet + i;
+      const prefix = `${parts[0]}.${parts[1]}.${thirdOctet}.`;
+      const distance = Math.abs(thirdOctet - phoneThirdOctet);
+
+      let priority: number;
+      if (thirdOctet === phoneThirdOctet) {
+        priority = 1; // Phone's block - highest priority
+      } else if (gatewayThirdOctet !== null && thirdOctet === gatewayThirdOctet) {
+        priority = 2; // Gateway's block - second priority
+      } else {
+        priority = 3 + distance; // Other blocks by distance
+      }
+
+      blocks.push({ prefix, priority, distance });
+    }
+  } else if (cidrPrefix >= 8) {
+    // /8 to /15 - very large networks
+    // Generate blocks but with smart prioritization
+    const numSecondOctets = Math.pow(2, 16 - cidrPrefix);
+    const startSecondOctet = parts[1] & (256 - numSecondOctets);
+
+    for (let j = 0; j < numSecondOctets && j < 256; j++) {
+      const secondOctet = startSecondOctet + j;
+      const secondOctetDistance = Math.abs(secondOctet - parts[1]);
+
+      for (let i = 0; i < 256; i++) {
+        const thirdOctet = i;
+        const prefix = `${parts[0]}.${secondOctet}.${thirdOctet}.`;
+
+        // Calculate total distance (second octet weight * 256 + third octet distance)
+        const thirdOctetDistance =
+          secondOctet === parts[1] ? Math.abs(thirdOctet - phoneThirdOctet) : 256;
+        const totalDistance = secondOctetDistance * 256 + thirdOctetDistance;
+
+        let priority: number;
+        if (secondOctet === parts[1] && thirdOctet === phoneThirdOctet) {
+          priority = 1;
+        } else if (gatewayIp && gatewayPrefix === prefix) {
+          priority = 2;
+        } else {
+          priority = 3 + totalDistance;
+        }
+
+        blocks.push({ prefix, priority, distance: totalDistance });
+      }
+    }
+  }
+
+  // Sort by priority
+  blocks.sort((a, b) => a.priority - b.priority);
+
+  return blocks;
+}
+
+/**
+ * Get the /24 subnet prefix where the gateway resides
+ */
+export function getGatewaySubnetPrefix(gatewayIp: string): string | null {
+  return getSubnetPrefix24(gatewayIp);
+}
+
+/**
+ * Get subnets to scan in priority order
+ *
+ * UPDATED: No longer uses hardcoded fallback subnets.
+ * Only returns actual subnets within the device's network range.
+ *
+ * Priority ordering:
+ * 1. Phone's current /24 block (priority 1)
+ * 2. Gateway's /24 block if different (priority 2)
+ * 3. Other blocks within subnet, ordered by distance (priority 3+)
  */
 export async function getSubnetsToScan(): Promise<SubnetInfo[]> {
   const subnets: SubnetInfo[] = [];
-  const addedPrefixes = new Set<string>();
 
   // Get device network info
   const networkInfo = await getDeviceNetworkInfo();
 
-  if (networkInfo && isPrivateIP(networkInfo.ipAddress)) {
-    // Priority 1: All /24 subnets within the device's actual subnet
-    // For /23 (255.255.254.0): includes both 10.13.12.x and 10.13.13.x
-    // For /24: just the current subnet
-    // For /16: all 256 subnets in 10.13.x.x
-    const actualSubnetPrefixes = generateSubnetPrefixes(
-      networkInfo.ipAddress,
-      networkInfo.cidrPrefix
-    );
-
-    debug.log(
-      `Priority 1 - Actual subnet /${networkInfo.cidrPrefix}: ${actualSubnetPrefixes.length} /24 blocks`
-    );
-    actualSubnetPrefixes.forEach((p) => debug.log(`  - ${p}x`));
-
-    for (const prefix of actualSubnetPrefixes) {
-      if (!addedPrefixes.has(prefix)) {
-        subnets.push({
-          prefix,
-          deviceIp: networkInfo.ipAddress,
-          isPrimary: prefix === getSubnetPrefix24(networkInfo.ipAddress),
-          priority: 1,
-        });
-        addedPrefixes.add(prefix);
-      }
-    }
-
-    // Priority 2: Common fallback subnets (in case device is on different VLAN)
-    const fallbacks = FALLBACK_SUBNET_PREFIXES.filter((p) => !addedPrefixes.has(p));
-    for (const prefix of fallbacks) {
-      subnets.push({
-        prefix,
-        deviceIp: networkInfo.ipAddress,
-        isPrimary: false,
-        priority: 2,
-      });
-      addedPrefixes.add(prefix);
-    }
-    debug.log(`Priority 2 - Fallbacks: ${fallbacks.join(', ')}`);
-  } else {
-    // No network info, use fallbacks only
-    debug.warn('Could not get network info, using fallbacks');
-    for (const prefix of FALLBACK_SUBNET_PREFIXES) {
-      subnets.push({
-        prefix,
-        deviceIp: '',
-        isPrimary: false,
-        priority: 2,
-      });
-      addedPrefixes.add(prefix);
-    }
+  if (!networkInfo || !isPrivateIP(networkInfo.ipAddress)) {
+    debug.warn('Could not get valid network info, cannot scan');
+    return [];
   }
 
-  // Sort by priority, then put primary first within same priority
-  subnets.sort((a, b) => {
-    if (a.priority !== b.priority) return a.priority - b.priority;
-    if (a.isPrimary && !b.isPrimary) return -1;
-    if (!a.isPrimary && b.isPrimary) return 1;
-    return 0;
-  });
+  // Generate scan blocks with priority
+  const scanBlocks = generateScanBlocks(
+    networkInfo.ipAddress,
+    networkInfo.cidrPrefix,
+    networkInfo.gateway
+  );
 
-  debug.log(`Total subnets to scan: ${subnets.length}`);
+  debug.log(`Network: ${networkInfo.ipAddress}/${networkInfo.cidrPrefix}`);
+  debug.log(`Gateway: ${networkInfo.gateway}`);
+  debug.log(`Generated ${scanBlocks.length} scan blocks`);
+
+  // Convert ScanBlocks to SubnetInfo for backward compatibility
+  const phonePrefix = getSubnetPrefix24(networkInfo.ipAddress);
+
+  for (const block of scanBlocks) {
+    subnets.push({
+      prefix: block.prefix,
+      deviceIp: networkInfo.ipAddress,
+      isPrimary: block.prefix === phonePrefix,
+      priority: block.priority,
+    });
+  }
+
+  // Log first few blocks for debugging
+  const previewCount = Math.min(10, subnets.length);
+  debug.log(`First ${previewCount} subnets to scan:`);
+  for (let i = 0; i < previewCount; i++) {
+    const s = subnets[i];
+    debug.log(`  ${i + 1}. ${s.prefix}x (priority: ${s.priority}, primary: ${s.isPrimary})`);
+  }
+
+  if (subnets.length > previewCount) {
+    debug.log(`  ... and ${subnets.length - previewCount} more`);
+  }
+
   return subnets;
 }
 
 /**
- * Fallback subnet prefixes for common home/office networks
+ * @deprecated Use generateScanBlocks() for new implementations.
+ * Kept for backward compatibility with existing code.
  */
-export const FALLBACK_SUBNET_PREFIXES = [
-  '192.168.1.', // Most common home router default
-  '192.168.0.', // Common alternative (Netgear, TP-Link, etc.)
-  '192.168.2.', // Some routers use this
-  '10.0.0.', // Apple AirPort, some enterprise
-  '10.0.1.', // Apple AirPort alternative
-  '10.13.12.', // Common enterprise/VPN subnet
-  '172.16.0.', // Class B private
-  '172.16.1.', // Class B private alternative
-];
+export const FALLBACK_SUBNET_PREFIXES: string[] = [];
 
 /**
  * Get device's current network subnets (legacy function for compatibility)

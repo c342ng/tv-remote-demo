@@ -2,7 +2,10 @@
  * DeviceDiscoveryScreen - Scan and select TV devices
  * Supports scanning, manual entry, and device connection
  *
- * Updated to use aggregated discovery for multi-platform simultaneous search
+ * Updated to use DiscoveryOrchestrator for three-phase discovery:
+ * 1. Cache verification - verify previously discovered devices
+ * 2. Broadcast discovery - SSDP/mDNS passive listening
+ * 3. Active scanning - port scan by priority blocks
  */
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
@@ -19,6 +22,7 @@ import {
   Platform,
   ScrollView,
   Keyboard,
+  Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -28,9 +32,9 @@ import { DiscoveredDevice, TVSession } from '../domain/remote-interfaces';
 import { getAdapter } from '../protocols/factory';
 import { setSession } from '../services/session-store';
 import {
-  discoverAllDevices,
+  discoveryOrchestrator,
   getSupportedPlatforms,
-  AggregatedDiscoveryResult,
+  type DiscoveryPhase,
 } from '../services/aggregated-discovery';
 import { getDeviceNetworkInfo } from '../services/network-utils';
 
@@ -52,6 +56,10 @@ export const DeviceDiscoveryScreen: React.FC = () => {
   const [connectingDeviceId, setConnectingDeviceId] = useState<string | null>(null);
   const [connectedDeviceId, setConnectedDeviceId] = useState<string | null>(null);
 
+  // Discovery phase state
+  const [discoveryPhase, setDiscoveryPhase] = useState<DiscoveryPhase>('idle');
+  const [scanProgress, setScanProgress] = useState<number>(0);
+
   // Manual entry modal
   const [showManualEntry, setShowManualEntry] = useState(false);
   const [manualIp, setManualIp] = useState('');
@@ -59,6 +67,9 @@ export const DeviceDiscoveryScreen: React.FC = () => {
 
   // Network info for debugging
   const [networkIp, setNetworkIp] = useState<string | null>(null);
+
+  // Animation for new devices
+  const fadeAnim = useRef(new Animated.Value(1)).current;
 
   // Session ref for cleanup (only used for sessions not stored globally)
   const sessionRef = useRef<TVSession | null>(null);
@@ -68,6 +79,22 @@ export const DeviceDiscoveryScreen: React.FC = () => {
 
   // Note: We don't cleanup session on unmount because it's stored in global store
   // and will be used by RemoteControlScreen
+
+  // Get phase display text
+  const getPhaseText = useCallback((phase: DiscoveryPhase, progress?: number): string => {
+    switch (phase) {
+      case 'cache-verify':
+        return '正在验证已知设备...';
+      case 'broadcast':
+        return '正在广播发现...';
+      case 'scan':
+        return progress !== undefined ? `正在扫描网络 (${progress}%)...` : '正在扫描网络...';
+      case 'complete':
+        return '扫描完成';
+      default:
+        return '';
+    }
+  }, []);
 
   // Helper function to convert DiscoveredDevice to TVDevice
   const convertToTVDevice = useCallback(
@@ -90,11 +117,13 @@ export const DeviceDiscoveryScreen: React.FC = () => {
     []
   );
 
-  // Start device discovery (multi-platform)
+  // Start device discovery (multi-platform with three phases)
   const handleScan = useCallback(async () => {
-    debug.log('Starting multi-platform device scan...');
+    debug.log('Starting three-phase device discovery...');
     setIsScanning(true);
     setDevices([]);
+    setDiscoveryPhase('idle');
+    setScanProgress(0);
     seenDeviceIdsRef.current.clear();
 
     // Get and display network info first
@@ -102,39 +131,61 @@ export const DeviceDiscoveryScreen: React.FC = () => {
       const netInfo = await getDeviceNetworkInfo();
       if (netInfo) {
         setNetworkIp(netInfo.ipAddress);
-        debug.log(`Phone IP: ${netInfo.ipAddress}, Subnet: ${netInfo.subnetMask}`);
+        debug.log(
+          `Phone IP: ${netInfo.ipAddress}, Subnet: ${netInfo.subnetMask}/${netInfo.cidrPrefix}`
+        );
       }
     } catch (e) {
       debug.error('Failed to get network info:', e);
     }
 
     try {
-      // Use aggregated discovery for all supported platforms
+      // Use DiscoveryOrchestrator for three-phase discovery
       const supportedPlatforms = getSupportedPlatforms();
       debug.log(`Supported platforms: ${supportedPlatforms.join(', ')}`);
 
-      debug.log('Starting aggregated discovery...');
+      debug.log('Starting orchestrated discovery...');
       const startTime = Date.now();
 
-      // Use onDeviceFound callback for real-time UI updates
-      const result: AggregatedDiscoveryResult = await discoverAllDevices({
-        timeoutMs: 5000,
-        platforms: supportedPlatforms,
+      // Set up event emitter for real-time updates
+      discoveryOrchestrator.setEventEmitter({
         onDeviceFound: (device: DiscoveredDevice) => {
           // Deduplicate based on device ID
           if (!seenDeviceIdsRef.current.has(device.id)) {
             seenDeviceIdsRef.current.add(device.id);
             const tvDevice = convertToTVDevice(device);
             debug.log(`[Real-time] Adding device: ${device.name} at ${device.ipAddress}`);
+
+            // Animate new device appearance
+            Animated.sequence([
+              Animated.timing(fadeAnim, { toValue: 0.5, duration: 100, useNativeDriver: true }),
+              Animated.timing(fadeAnim, { toValue: 1, duration: 200, useNativeDriver: true }),
+            ]).start();
+
             setDevices((prev) => [...prev, tvDevice]);
           }
         },
+        onPhaseChange: (phase: DiscoveryPhase, progress?: number) => {
+          debug.log(`Phase change: ${phase}${progress !== undefined ? ` (${progress}%)` : ''}`);
+          setDiscoveryPhase(phase);
+          if (progress !== undefined) {
+            setScanProgress(progress);
+          }
+        },
+      });
+
+      const result = await discoveryOrchestrator.startDiscovery({
+        timeoutMs: 10000,
+        platforms: supportedPlatforms,
+        scanConcurrency: 50,
       });
 
       const elapsed = Date.now() - startTime;
 
       debug.log(`Discovery completed in ${elapsed}ms (reported: ${result.durationMs}ms)`);
       debug.log(`Found ${result.devices.length} device(s) total`);
+      debug.log(`Cached devices verified: ${result.cachedDevicesVerified}`);
+      debug.log(`Blocks scanned: ${result.blocksScanned}`);
 
       // Log platform breakdown
       for (const [platform, platformDevices] of result.byPlatform.entries()) {
@@ -150,7 +201,6 @@ export const DeviceDiscoveryScreen: React.FC = () => {
       }
 
       // Final check - ensure all devices are in the list
-      // (in case any were missed by the real-time callback)
       setDevices((prev) => {
         const existingIds = new Set(prev.map((d) => d.id));
         const newDevices = result.devices
@@ -184,9 +234,10 @@ export const DeviceDiscoveryScreen: React.FC = () => {
       Alert.alert('扫描失败', '无法扫描网络设备，请检查网络连接。');
     } finally {
       setIsScanning(false);
+      setDiscoveryPhase('complete');
       debug.log('Scan completed');
     }
-  }, [convertToTVDevice]);
+  }, [convertToTVDevice, fadeAnim]);
 
   // Auto-scan on mount
   useEffect(() => {
@@ -338,12 +389,62 @@ export const DeviceDiscoveryScreen: React.FC = () => {
         </Pressable>
       </View>
 
-      {/* Scanning indicator */}
+      {/* Scanning indicator with phase display */}
       {isScanning && (
         <View style={styles.scanningContainer}>
           <ActivityIndicator size="large" color="#4CAF50" />
-          <Text style={styles.scanningText}>正在扫描网络...</Text>
+          <Text style={styles.scanningText}>{getPhaseText(discoveryPhase, scanProgress)}</Text>
           {networkIp && <Text style={styles.networkIpText}>手机 IP: {networkIp}</Text>}
+
+          {/* Phase indicator dots */}
+          <View style={styles.phaseIndicator}>
+            <View
+              style={[styles.phaseDot, discoveryPhase === 'cache-verify' && styles.phaseDotActive]}
+            />
+            <View style={styles.phaseConnector} />
+            <View
+              style={[styles.phaseDot, discoveryPhase === 'broadcast' && styles.phaseDotActive]}
+            />
+            <View style={styles.phaseConnector} />
+            <View style={[styles.phaseDot, discoveryPhase === 'scan' && styles.phaseDotActive]} />
+          </View>
+          <View style={styles.phaseLabels}>
+            <Text
+              style={[
+                styles.phaseLabel,
+                discoveryPhase === 'cache-verify' && styles.phaseLabelActive,
+              ]}
+            >
+              缓存
+            </Text>
+            <Text
+              style={[styles.phaseLabel, discoveryPhase === 'broadcast' && styles.phaseLabelActive]}
+            >
+              广播
+            </Text>
+            <Text style={[styles.phaseLabel, discoveryPhase === 'scan' && styles.phaseLabelActive]}>
+              扫描
+            </Text>
+          </View>
+
+          {/* Scan progress bar */}
+          {discoveryPhase === 'scan' && (
+            <View style={styles.progressContainer}>
+              <View style={[styles.progressBar, { width: `${scanProgress}%` }]} />
+            </View>
+          )}
+
+          {/* Stop button */}
+          <Pressable
+            style={styles.stopButton}
+            onPress={() => {
+              discoveryOrchestrator.stopDiscovery();
+              setIsScanning(false);
+              setDiscoveryPhase('complete');
+            }}
+          >
+            <Text style={styles.stopButtonText}>停止扫描</Text>
+          </Pressable>
         </View>
       )}
 
@@ -502,6 +603,63 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 8,
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+  },
+  phaseIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 20,
+  },
+  phaseDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: '#444',
+  },
+  phaseDotActive: {
+    backgroundColor: '#4CAF50',
+  },
+  phaseConnector: {
+    width: 30,
+    height: 2,
+    backgroundColor: '#444',
+  },
+  phaseLabels: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: 140,
+    marginTop: 8,
+  },
+  phaseLabel: {
+    color: '#666',
+    fontSize: 11,
+  },
+  phaseLabelActive: {
+    color: '#4CAF50',
+    fontWeight: '600',
+  },
+  progressContainer: {
+    width: '80%',
+    height: 4,
+    backgroundColor: '#333',
+    borderRadius: 2,
+    marginTop: 16,
+    overflow: 'hidden',
+  },
+  progressBar: {
+    height: '100%',
+    backgroundColor: '#4CAF50',
+    borderRadius: 2,
+  },
+  stopButton: {
+    marginTop: 20,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    backgroundColor: '#333',
+    borderRadius: 8,
+  },
+  stopButtonText: {
+    color: '#888',
+    fontSize: 14,
   },
   listContent: {
     paddingVertical: 12,

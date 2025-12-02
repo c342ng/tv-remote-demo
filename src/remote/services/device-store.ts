@@ -51,6 +51,13 @@ class DeviceStore implements DeviceManager {
   }
 
   /**
+   * Load store from AsyncStorage (alias for initialize)
+   */
+  async load(): Promise<void> {
+    return this.initialize();
+  }
+
+  /**
    * Persist current state to AsyncStorage
    */
   private async persist(): Promise<void> {
@@ -76,6 +83,21 @@ class DeviceStore implements DeviceManager {
     await this.initialize();
     if (!this.state.activeDeviceId) return null;
     return this.state.devices.find((d) => d.id === this.state.activeDeviceId) || null;
+  }
+
+  /**
+   * Get all devices (alias for getDevices)
+   */
+  async getAllDevices(): Promise<TVDevice[]> {
+    return this.getDevices();
+  }
+
+  /**
+   * Get active device ID
+   */
+  async getActiveDeviceId(): Promise<string | null> {
+    await this.initialize();
+    return this.state.activeDeviceId;
   }
 
   /**

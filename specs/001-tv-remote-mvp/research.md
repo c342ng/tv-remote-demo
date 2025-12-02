@@ -219,13 +219,23 @@
 
 ## 8. 已解决的 NEEDS CLARIFICATION（针对本研究范围）
 
-在本 research 中，关于“各 TV 平台遥控协议与抽象层设计”的关键不确定点已被收敛为以下决策：
+在本 research 中，关于“各 TV 平台遥控协议与抽象层设计”以及测试/环境开关的关键不确定点已被收敛为以下决策：
 
 1. **控制通道选择**：确定 Android/Fire 采用 ADB over TCP，LG webOS 采用官方 WebSocket API，Samsung Tizen 采用 WebSocket Remote 协议，Roku 采用 ECP。  
 2. **抽象层结构**：采用 `Discovery + Auth + Session + Adapter` 四层模型，统一指令枚举与能力描述。  
 3. **多设备与 UX 行为**：通过 `TVDevice`/`TVSession`/`DeviceManager` 组合实现统一的多设备管理与能力驱动的 UI。  
+4. **E2E 测试工具选型**：
+  - **Decision**: MVP 采用 **Detox** 作为 React Native E2E 测试框架（iOS 目标），利用其对 RN/Expo 的成熟支持和并发测试能力。  
+  - **Rationale**: Detox 在 RN 社区被广泛使用，支持在 CI 中运行、可控制网络/存储 mock，便于覆盖“连接设备、发送指令、多设备切换”等关键流程。  
+  - **Alternatives considered**: Maestro（脚本语法更简洁但对 RN/Expo 生态集成度略低）、Appium（通用性强但维护成本与编写成本更高）。  
+5. **Mock 环境变量策略**：
+  - **Decision**: 使用 Expo/React Native 环境变量 `TV_REMOTE_ENV` 控制 mock 逻辑：
+    - 当 `TV_REMOTE_ENV === "mock"` 时，抽象层使用 `mocks/` 下的虚拟 `PlatformAdapter` 和发现/会话实现，只模拟成功/失败路径与状态机，不实际访问网络。
+    - 其他值（包括未设置）一律视为 **生产/真机模式**，始终使用真实协议实现。  
+  - **Rationale**: 满足“默认真机模式”的需求，避免在生产环境误启 mock；同时便于在本地与 CI 中通过环境变量安全切换到 mock，以支持无设备的自动化测试。  
+  - **Alternatives considered**: 使用 `NODE_ENV` 或 Expo profile 名称区分 → 易与其他构建配置混淆；通过运行时 UI 开关切换 mock → 有被误触导致生产环境不连真机的风险。
 
-如需进一步澄清的内容（例如选用具体移动端技术栈、存储实现、测试框架等）将在后续 data-model 与 contracts 设计阶段补充，但与“遥控协议与抽象层”主题无直接冲突。
+在当前阶段，与“原生模块选型、具体依赖库版本、持久化实现细节”相关的细节仍可在实现时细化，但不会改变上述抽象层、测试策略与环境切换策略的总体方向。
 
 
 ## 9. OpenAI 研究报告
@@ -514,3 +524,28 @@ socket.on('message', (msg, rinfo) => {\
 
 通过上述适配层设计，我们可以满足规格要求的**多设备管理**和**跨平台统一体验**：应用可扫描网络上的设备IP（Android通过mDNS、Fire可尝试ADB广播、WebOS通过SSDP、Samsung通过SSDP、Roku通过SSDP），构建一个 TVDevice 列表。用户添加后，选择某设备则相应 Adapter 接管遥控UI交互。由于所有Adapter实现了相同接口，UI层的遥控组件可以不变地复用，实现**“不同平台切换控制目标而界面操作一致”**。
 本研究提供了开发所需的底层资料和示例代码，开发团队可在离线情况下查阅本文件以完成各协议的对接工作，满足 MVP 功能需求。各平台Adapter具体实现细节和API调用可参考上文引用的官方文档和第三方库源码，在此基础上开展数据模型和合同设计、任务分解等下一步工作。
+
+## 10. Implementation Details for React Native (Expo 54)
+
+Based on the specific constraints of Expo SDK 54 and React Native v0.81.5, the following libraries and tools are selected for implementation.
+
+### 10.1 Device Discovery Libraries
+- **SSDP (Roku, Tizen, webOS)**: Use **`react-native-udp`**.
+  - *Reason*: High-level SSDP libraries are often unmaintained. Manual implementation of `M-SEARCH` packets using UDP sockets provides the best control and compatibility with Expo Development Builds.
+- **mDNS (Android/Google TV)**: Use **`react-native-zeroconf`**.
+  - *Reason*: Industry standard for mDNS. Requires `@config-plugins/react-native-zeroconf` for Expo config plugin support to handle permissions.
+
+### 10.2 Protocol Transport Libraries
+- **TCP (ADB for Android/Fire TV)**: Use **`react-native-tcp-socket`**.
+  - *Reason*: Required to implement the ADB handshake (CNXN -> AUTH -> OPEN) directly in JS/TS, as no maintained RN ADB library exists.
+- **WebSocket (Tizen, webOS)**: Use built-in **`WebSocket`** API.
+  - *Reason*: Native support in RN is sufficient.
+- **HTTP (Roku)**: Use built-in **`fetch`** API.
+
+### 10.3 Testing Tools
+- **E2E Testing**: **Maestro**.
+  - *Reason*: Superior compatibility with Expo Development Builds compared to Detox. YAML-based test definition simplifies maintenance.
+
+### 10.4 State & Navigation
+- **State Management**: **`zustand`**.
+- **Navigation**: **`expo-router`**.

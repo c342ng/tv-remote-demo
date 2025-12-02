@@ -5,6 +5,6 @@ module.exports = {
   ],
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/$1',
-    '^@remote/(.*)$': '<rootDir>/app/remote/$1',
+    '^@remote/(.*)$': '<rootDir>/src/remote/$1',
   },
 };

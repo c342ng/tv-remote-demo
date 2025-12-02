@@ -1,8 +1,9 @@
 /**
  * RemoteButton - Universal remote control button component
  * Provides haptic feedback and visual press states with <100ms response
+ * Supports capability-driven visibility and disabled states
  */
-import React, { useCallback, useRef } from 'react';
+import React, { useCallback, useMemo, useRef } from 'react';
 import {
   Pressable,
   Text,
@@ -13,23 +14,32 @@ import {
   Platform,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import { RemoteButton as RemoteButtonType, RemoteCommandType } from '../domain/models';
+import { RemoteButton as RemoteButtonType, RemoteCommandType, TVCapabilities } from '../domain/models';
+import { 
+  RemoteButtonWithRules, 
+  isButtonVisible, 
+  isButtonDisabled 
+} from '../domain/default-profile';
 
 export interface RemoteButtonProps {
-  /** Button configuration */
-  button: RemoteButtonType;
+  /** Button configuration (can be basic or with rules) */
+  button: RemoteButtonType | RemoteButtonWithRules;
   /** Callback when button is pressed */
   onPress: (command: RemoteCommandType) => void;
   /** Optional custom style */
   style?: ViewStyle;
   /** Optional custom text style */
   textStyle?: TextStyle;
-  /** Whether the button is disabled */
+  /** Whether the button is disabled (overrides capability-based disabled state) */
   disabled?: boolean;
   /** Button size variant */
   size?: 'small' | 'medium' | 'large';
   /** Button shape variant */
   shape?: 'circle' | 'rounded' | 'square';
+  /** Current device capabilities for capability-driven visibility/disabled */
+  capabilities?: TVCapabilities | null;
+  /** Whether the device is connected (affects disabled state) */
+  isConnected?: boolean;
 }
 
 // Size configurations
@@ -47,7 +57,15 @@ const SHAPE_CONFIG = {
 };
 
 /**
+ * Check if button has visibility rules
+ */
+function hasVisibilityRules(button: RemoteButtonType | RemoteButtonWithRules): button is RemoteButtonWithRules {
+  return 'visibilityRule' in button;
+}
+
+/**
  * RemoteButton component with haptic feedback
+ * Supports capability-driven visibility and disabled states
  */
 export const RemoteButton: React.FC<RemoteButtonProps> = ({
   button,
@@ -57,8 +75,34 @@ export const RemoteButton: React.FC<RemoteButtonProps> = ({
   disabled = false,
   size = 'medium',
   shape = 'rounded',
+  capabilities = null,
+  isConnected = true,
 }) => {
   const pressStartTime = useRef<number>(0);
+
+  // Determine visibility based on capabilities
+  const isVisible = useMemo(() => {
+    if (!hasVisibilityRules(button)) {
+      return true;
+    }
+    return isButtonVisible(button, capabilities);
+  }, [button, capabilities]);
+
+  // Determine disabled state based on capabilities and connection
+  const isDisabledByCapability = useMemo(() => {
+    if (!hasVisibilityRules(button)) {
+      return false;
+    }
+    return isButtonDisabled(button, capabilities, isConnected);
+  }, [button, capabilities, isConnected]);
+
+  // Final disabled state combines explicit disabled prop and capability-based state
+  const finalDisabled = disabled || isDisabledByCapability;
+
+  // Don't render if not visible
+  if (!isVisible) {
+    return null;
+  }
 
   // Track press start for response time measurement
   const handlePressIn = useCallback((event: GestureResponderEvent) => {
@@ -119,14 +163,14 @@ export const RemoteButton: React.FC<RemoteButtonProps> = ({
       onPressIn={handlePressIn}
       onLongPress={handleLongPress}
       delayLongPress={300}
-      disabled={disabled}
+      disabled={finalDisabled}
       style={({ pressed }) => [
         styles.button,
         {
           width: sizeConfig.width,
           height: sizeConfig.height,
           borderRadius,
-          opacity: disabled ? 0.4 : 1,
+          opacity: finalDisabled ? 0.4 : 1,
           transform: [{ scale: pressed ? 0.95 : 1 }],
           backgroundColor: pressed ? '#4a4a4a' : '#2a2a2a',
         },
@@ -134,7 +178,7 @@ export const RemoteButton: React.FC<RemoteButtonProps> = ({
       ]}
       accessibilityRole="button"
       accessibilityLabel={button.label}
-      accessibilityState={{ disabled }}
+      accessibilityState={{ disabled: finalDisabled }}
     >
       <Text
         style={[

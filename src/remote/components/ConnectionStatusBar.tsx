@@ -9,6 +9,7 @@ import {
   StyleSheet,
   Pressable,
   ActivityIndicator,
+  TouchableOpacity,
 } from 'react-native';
 import { ConnectionStatus, TVDevice } from '../domain/models';
 
@@ -21,6 +22,10 @@ export interface ConnectionStatusBarProps {
   onPress?: () => void;
   /** Callback for disconnect action */
   onDisconnect?: () => void;
+  /** Callback for device switcher action */
+  onDeviceSwitch?: () => void;
+  /** Number of saved devices (for badge) */
+  savedDeviceCount?: number;
 }
 
 // Status color mapping
@@ -53,6 +58,8 @@ export const ConnectionStatusBar: React.FC<ConnectionStatusBarProps> = ({
   status,
   onPress,
   onDisconnect,
+  onDeviceSwitch,
+  savedDeviceCount,
 }) => {
   const statusColor = STATUS_COLORS[status];
   const statusLabel = STATUS_LABELS[status];
@@ -65,6 +72,23 @@ export const ConnectionStatusBar: React.FC<ConnectionStatusBarProps> = ({
       onPress={onPress}
       disabled={!onPress}
     >
+      {/* Device switcher button (left side) */}
+      {onDeviceSwitch && (
+        <TouchableOpacity
+          style={styles.deviceSwitchButton}
+          onPress={onDeviceSwitch}
+          hitSlop={8}
+          testID="device-switch-button"
+        >
+          <Text style={styles.deviceSwitchIcon}>📱</Text>
+          {savedDeviceCount !== undefined && savedDeviceCount > 1 && (
+            <View style={styles.deviceBadge}>
+              <Text style={styles.deviceBadgeText}>{savedDeviceCount}</Text>
+            </View>
+          )}
+        </TouchableOpacity>
+      )}
+
       {/* Status indicator */}
       <View style={styles.statusSection}>
         <View style={[styles.statusDot, { backgroundColor: statusColor }]} />
@@ -126,6 +150,31 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#333',
+  },
+  deviceSwitchButton: {
+    marginRight: 12,
+    padding: 4,
+    position: 'relative',
+  },
+  deviceSwitchIcon: {
+    fontSize: 20,
+  },
+  deviceBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -6,
+    backgroundColor: '#007AFF',
+    borderRadius: 8,
+    minWidth: 16,
+    height: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+  },
+  deviceBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '600',
   },
   statusSection: {
     flexDirection: 'row',

@@ -1,8 +1,9 @@
 /**
  * RemoteControlScreen - Main remote control interface
  * Renders button groups and handles command dispatch
+ * UI layout is unified across platforms, with capability-driven button visibility/disabled states
  */
-import React, { useCallback } from 'react';
+import React, { useCallback, useEffect, useState, useMemo } from 'react';
 import {
   View,
   StyleSheet,
@@ -17,8 +18,10 @@ import { buttonGroups } from '../domain/default-profile';
 import {
   RemoteCommandType,
   ConnectionStatus,
+  TVCapabilities,
 } from '../domain/models';
 import { useSession, clearSession } from '../services/session-store';
+import { deviceStore } from '../services/device-store';
 
 /** Debug logger */
 const DEBUG_TAG = '[RemoteControl]';
@@ -30,19 +33,49 @@ const debug = {
 
 /**
  * RemoteControlScreen component
+ * Uses unified layout across all platforms
+ * Button visibility/disabled state is driven by device capabilities
  */
 export const RemoteControlScreen: React.FC = () => {
   // Get session state from global store
   const { device, session, status } = useSession();
+  const [savedDeviceCount, setSavedDeviceCount] = useState(0);
   
   debug.log('Rendering RemoteControlScreen');
   debug.log(`  Device: ${device?.name ?? 'none'}`);
   debug.log(`  Session: ${session?.sessionId ?? 'none'}`);
   debug.log(`  Status: ${status}`);
 
+  // Get device capabilities (unified across platforms)
+  const capabilities: TVCapabilities | null = useMemo(() => {
+    return device?.capabilities ?? null;
+  }, [device]);
+
+  // Connection state for buttons
+  const isConnected = status === ConnectionStatus.Connected;
+
+  // Load saved device count on mount and when device changes
+  useEffect(() => {
+    const loadDeviceCount = async () => {
+      try {
+        await deviceStore.load();
+        const devices = await deviceStore.getAllDevices();
+        setSavedDeviceCount(devices.length);
+      } catch (error) {
+        debug.warn('Failed to load device count:', error);
+      }
+    };
+    loadDeviceCount();
+  }, [device]);
+
   // Handle status bar press - navigate to device discovery
   const handleStatusBarPress = useCallback(() => {
     router.push('/remote/discovery');
+  }, []);
+
+  // Handle device switch - navigate to device management
+  const handleDeviceSwitch = useCallback(() => {
+    router.push('/remote/devices');
   }, []);
 
   // Handle disconnect
@@ -74,12 +107,14 @@ export const RemoteControlScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Connection status bar */}
+      {/* Connection status bar with device switcher */}
       <ConnectionStatusBar
         device={device}
         status={status}
         onPress={handleStatusBarPress}
         onDisconnect={handleDisconnect}
+        onDeviceSwitch={handleDeviceSwitch}
+        savedDeviceCount={savedDeviceCount}
       />
 
       <ScrollView
@@ -87,28 +122,30 @@ export const RemoteControlScreen: React.FC = () => {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* System buttons row */}
+        {/* System buttons row - capability-driven visibility */}
         <View style={styles.buttonRow}>
           {buttonGroups.system.map((button) => (
             <RemoteButton
               key={button.id}
               button={button}
               onPress={handleCommand}
-              disabled={status !== ConnectionStatus.Connected}
+              capabilities={capabilities}
+              isConnected={isConnected}
               size="medium"
               shape="circle"
             />
           ))}
         </View>
 
-        {/* Navigation D-pad */}
+        {/* Navigation D-pad - always visible (core functionality) */}
         <View style={styles.dpadContainer}>
           {/* Up */}
           <View style={styles.dpadRow}>
             <RemoteButton
               button={buttonGroups.navigation.find(b => b.command === RemoteCommandType.Up)!}
               onPress={handleCommand}
-              disabled={status !== ConnectionStatus.Connected}
+              capabilities={capabilities}
+              isConnected={isConnected}
               size="large"
               shape="circle"
             />
@@ -119,14 +156,16 @@ export const RemoteControlScreen: React.FC = () => {
             <RemoteButton
               button={buttonGroups.navigation.find(b => b.command === RemoteCommandType.Left)!}
               onPress={handleCommand}
-              disabled={status !== ConnectionStatus.Connected}
+              capabilities={capabilities}
+              isConnected={isConnected}
               size="large"
               shape="circle"
             />
             <RemoteButton
               button={buttonGroups.navigation.find(b => b.command === RemoteCommandType.Select)!}
               onPress={handleCommand}
-              disabled={status !== ConnectionStatus.Connected}
+              capabilities={capabilities}
+              isConnected={isConnected}
               size="large"
               shape="circle"
               style={styles.selectButton}
@@ -134,7 +173,8 @@ export const RemoteControlScreen: React.FC = () => {
             <RemoteButton
               button={buttonGroups.navigation.find(b => b.command === RemoteCommandType.Right)!}
               onPress={handleCommand}
-              disabled={status !== ConnectionStatus.Connected}
+              capabilities={capabilities}
+              isConnected={isConnected}
               size="large"
               shape="circle"
             />
@@ -145,14 +185,15 @@ export const RemoteControlScreen: React.FC = () => {
             <RemoteButton
               button={buttonGroups.navigation.find(b => b.command === RemoteCommandType.Down)!}
               onPress={handleCommand}
-              disabled={status !== ConnectionStatus.Connected}
+              capabilities={capabilities}
+              isConnected={isConnected}
               size="large"
               shape="circle"
             />
           </View>
         </View>
 
-        {/* Volume and channel controls */}
+        {/* Volume and channel controls - capability-driven visibility */}
         <View style={styles.sideControlsContainer}>
           {/* Volume */}
           <View style={styles.sideControlColumn}>
@@ -161,7 +202,8 @@ export const RemoteControlScreen: React.FC = () => {
                 key={button.id}
                 button={button}
                 onPress={handleCommand}
-                disabled={status !== ConnectionStatus.Connected}
+                capabilities={capabilities}
+                isConnected={isConnected}
                 size="medium"
                 shape="rounded"
               />
@@ -175,7 +217,8 @@ export const RemoteControlScreen: React.FC = () => {
                 key={button.id}
                 button={button}
                 onPress={handleCommand}
-                disabled={status !== ConnectionStatus.Connected}
+                capabilities={capabilities}
+                isConnected={isConnected}
                 size="medium"
                 shape="rounded"
               />
@@ -183,35 +226,37 @@ export const RemoteControlScreen: React.FC = () => {
           </View>
         </View>
 
-        {/* Playback controls */}
+        {/* Playback controls - always visible */}
         <View style={styles.buttonRow}>
           {buttonGroups.playback.map((button) => (
             <RemoteButton
               key={button.id}
               button={button}
               onPress={handleCommand}
-              disabled={status !== ConnectionStatus.Connected}
+              capabilities={capabilities}
+              isConnected={isConnected}
               size="medium"
               shape="rounded"
             />
           ))}
         </View>
 
-        {/* Menu buttons */}
+        {/* Menu buttons - always visible */}
         <View style={styles.buttonRow}>
           {buttonGroups.menu.map((button) => (
             <RemoteButton
               key={button.id}
               button={button}
               onPress={handleCommand}
-              disabled={status !== ConnectionStatus.Connected}
+              capabilities={capabilities}
+              isConnected={isConnected}
               size="medium"
               shape="rounded"
             />
           ))}
         </View>
 
-        {/* Number pad */}
+        {/* Number pad - always visible */}
         <View style={styles.numpadContainer}>
           {/* Row 1: 1-2-3 */}
           <View style={styles.numpadRow}>
@@ -220,7 +265,8 @@ export const RemoteControlScreen: React.FC = () => {
                 key={button.id}
                 button={button}
                 onPress={handleCommand}
-                disabled={status !== ConnectionStatus.Connected}
+                capabilities={capabilities}
+                isConnected={isConnected}
                 size="medium"
                 shape="rounded"
               />
@@ -233,7 +279,8 @@ export const RemoteControlScreen: React.FC = () => {
                 key={button.id}
                 button={button}
                 onPress={handleCommand}
-                disabled={status !== ConnectionStatus.Connected}
+                capabilities={capabilities}
+                isConnected={isConnected}
                 size="medium"
                 shape="rounded"
               />
@@ -246,7 +293,8 @@ export const RemoteControlScreen: React.FC = () => {
                 key={button.id}
                 button={button}
                 onPress={handleCommand}
-                disabled={status !== ConnectionStatus.Connected}
+                capabilities={capabilities}
+                isConnected={isConnected}
                 size="medium"
                 shape="rounded"
               />
@@ -257,7 +305,8 @@ export const RemoteControlScreen: React.FC = () => {
             <RemoteButton
               button={buttonGroups.numbers[9]}
               onPress={handleCommand}
-              disabled={status !== ConnectionStatus.Connected}
+              capabilities={capabilities}
+              isConnected={isConnected}
               size="medium"
               shape="rounded"
             />

@@ -1,0 +1,35 @@
+openapi: 3.1.0
+info:
+  title: TV Remote Local Control API
+  version: 0.1.0
+
+paths:
+  /devices:
+    get:
+      summary: List discovered or saved TV devices
+      responses:
+        '200':
+          description: Device list
+    post:
+      summary: Add or update a TV device entry
+      responses:
+        '200':
+          description: Device upserted
+  /devices/{deviceId}:
+    delete:
+      summary: Remove a saved TV device
+      responses:
+        '204':
+          description: Device removed
+  /sessions:
+    post:
+      summary: Open a connection session to a device
+      responses:
+        '201':
+          description: Session created
+  /sessions/{sessionId}/commands:
+    post:
+      summary: Send a remote command through active session
+      responses:
+        '202':
+          description: Command accepted

@@ -33,11 +33,7 @@ import {
   SessionErrorCode,
 } from '../domain/models';
 import { getSubnetsToScan, getDeviceNetworkInfo, SubnetInfo } from '../services/network-utils';
-import {
-  probeAdbDevice,
-  isAdbClientSupported,
-  type AdbDeviceInfo,
-} from '../services/adb-client';
+import { probeAdbDevice, isAdbClientSupported, type AdbDeviceInfo } from '../services/adb-client';
 
 /** Debug logger for Fire TV adapter */
 const DEBUG_TAG = '[FireTVAdapter]';
@@ -58,35 +54,35 @@ const FIRE_TV_DIAL_PORT = 8008;
  * Fire OS uses the same keycodes as Android
  */
 const ANDROID_KEYCODE_MAP: Record<RemoteCommandType, number> = {
-  [RemoteCommandType.Up]: 19,           // KEYCODE_DPAD_UP
-  [RemoteCommandType.Down]: 20,         // KEYCODE_DPAD_DOWN
-  [RemoteCommandType.Left]: 21,         // KEYCODE_DPAD_LEFT
-  [RemoteCommandType.Right]: 22,        // KEYCODE_DPAD_RIGHT
-  [RemoteCommandType.Select]: 23,       // KEYCODE_DPAD_CENTER
-  [RemoteCommandType.Back]: 4,          // KEYCODE_BACK
-  [RemoteCommandType.Home]: 3,          // KEYCODE_HOME
-  [RemoteCommandType.VolumeUp]: 24,     // KEYCODE_VOLUME_UP
-  [RemoteCommandType.VolumeDown]: 25,   // KEYCODE_VOLUME_DOWN
-  [RemoteCommandType.Mute]: 164,        // KEYCODE_VOLUME_MUTE
-  [RemoteCommandType.Power]: 26,        // KEYCODE_POWER
-  [RemoteCommandType.Play]: 126,        // KEYCODE_MEDIA_PLAY
-  [RemoteCommandType.Pause]: 127,       // KEYCODE_MEDIA_PAUSE
-  [RemoteCommandType.Rewind]: 89,       // KEYCODE_MEDIA_REWIND
-  [RemoteCommandType.FastForward]: 90,  // KEYCODE_MEDIA_FAST_FORWARD
-  [RemoteCommandType.Num0]: 7,          // KEYCODE_0
-  [RemoteCommandType.Num1]: 8,          // KEYCODE_1
-  [RemoteCommandType.Num2]: 9,          // KEYCODE_2
-  [RemoteCommandType.Num3]: 10,         // KEYCODE_3
-  [RemoteCommandType.Num4]: 11,         // KEYCODE_4
-  [RemoteCommandType.Num5]: 12,         // KEYCODE_5
-  [RemoteCommandType.Num6]: 13,         // KEYCODE_6
-  [RemoteCommandType.Num7]: 14,         // KEYCODE_7
-  [RemoteCommandType.Num8]: 15,         // KEYCODE_8
-  [RemoteCommandType.Num9]: 16,         // KEYCODE_9
-  [RemoteCommandType.Menu]: 82,         // KEYCODE_MENU
-  [RemoteCommandType.Info]: 165,        // KEYCODE_INFO
-  [RemoteCommandType.Settings]: 176,    // KEYCODE_SETTINGS
-  [RemoteCommandType.ChannelUp]: 166,   // KEYCODE_CHANNEL_UP
+  [RemoteCommandType.Up]: 19, // KEYCODE_DPAD_UP
+  [RemoteCommandType.Down]: 20, // KEYCODE_DPAD_DOWN
+  [RemoteCommandType.Left]: 21, // KEYCODE_DPAD_LEFT
+  [RemoteCommandType.Right]: 22, // KEYCODE_DPAD_RIGHT
+  [RemoteCommandType.Select]: 23, // KEYCODE_DPAD_CENTER
+  [RemoteCommandType.Back]: 4, // KEYCODE_BACK
+  [RemoteCommandType.Home]: 3, // KEYCODE_HOME
+  [RemoteCommandType.VolumeUp]: 24, // KEYCODE_VOLUME_UP
+  [RemoteCommandType.VolumeDown]: 25, // KEYCODE_VOLUME_DOWN
+  [RemoteCommandType.Mute]: 164, // KEYCODE_VOLUME_MUTE
+  [RemoteCommandType.Power]: 26, // KEYCODE_POWER
+  [RemoteCommandType.Play]: 126, // KEYCODE_MEDIA_PLAY
+  [RemoteCommandType.Pause]: 127, // KEYCODE_MEDIA_PAUSE
+  [RemoteCommandType.Rewind]: 89, // KEYCODE_MEDIA_REWIND
+  [RemoteCommandType.FastForward]: 90, // KEYCODE_MEDIA_FAST_FORWARD
+  [RemoteCommandType.Num0]: 7, // KEYCODE_0
+  [RemoteCommandType.Num1]: 8, // KEYCODE_1
+  [RemoteCommandType.Num2]: 9, // KEYCODE_2
+  [RemoteCommandType.Num3]: 10, // KEYCODE_3
+  [RemoteCommandType.Num4]: 11, // KEYCODE_4
+  [RemoteCommandType.Num5]: 12, // KEYCODE_5
+  [RemoteCommandType.Num6]: 13, // KEYCODE_6
+  [RemoteCommandType.Num7]: 14, // KEYCODE_7
+  [RemoteCommandType.Num8]: 15, // KEYCODE_8
+  [RemoteCommandType.Num9]: 16, // KEYCODE_9
+  [RemoteCommandType.Menu]: 82, // KEYCODE_MENU
+  [RemoteCommandType.Info]: 165, // KEYCODE_INFO
+  [RemoteCommandType.Settings]: 176, // KEYCODE_SETTINGS
+  [RemoteCommandType.ChannelUp]: 166, // KEYCODE_CHANNEL_UP
   [RemoteCommandType.ChannelDown]: 167, // KEYCODE_CHANNEL_DOWN
 };
 
@@ -271,7 +267,7 @@ export class FireTVAdapter implements PlatformAdapter {
    * 2. If DIAL fails, use ADB protocol to query device properties
    *    - Connects to ADB port 5555
    *    - Identifies Fire TV by manufacturer (Amazon)
-   * 
+   *
    * @param ip - IP address to probe
    * @param timeoutMs - Timeout in milliseconds
    * @param assumeFireTv - If true, assume any ADB-enabled device is a Fire TV
@@ -302,7 +298,7 @@ export class FireTVAdapter implements PlatformAdapter {
   /**
    * Probe device using ADB protocol
    * Queries device properties to identify Fire TV (ro.product.brand = Amazon)
-   * 
+   *
    * @param ip - IP address to probe
    * @param timeoutMs - Timeout in milliseconds
    * @param assumeFireTv - If true, assume any ADB-enabled device is a Fire TV (for known IPs)
@@ -319,7 +315,7 @@ export class FireTVAdapter implements PlatformAdapter {
       if (assumeFireTv && deviceInfo?.isAdbEnabled) {
         debug.log(`ADB discovery: Assuming Fire TV at known IP ${ip}`);
         debug.log(`  ADB enabled: true, AUTH required`);
-        
+
         return {
           id: `firetv-${ip}`,
           name: `Fire TV (${ip})`,
@@ -359,10 +355,7 @@ export class FireTVAdapter implements PlatformAdapter {
   /**
    * Probe DIAL endpoint for Fire TV identification
    */
-  private async probeDialEndpoint(
-    ip: string,
-    timeoutMs: number
-  ): Promise<DiscoveredDevice | null> {
+  private async probeDialEndpoint(ip: string, timeoutMs: number): Promise<DiscoveredDevice | null> {
     try {
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), Math.min(timeoutMs, 1000));
@@ -386,10 +379,11 @@ export class FireTVAdapter implements PlatformAdapter {
             text.toLowerCase().includes('amazon') ||
             text.toLowerCase().includes('aftt') || // Fire TV Stick model prefix
             text.toLowerCase().includes('aftm') || // Fire TV Stick 4K
-            text.toLowerCase().includes('aftn')    // Fire TV Cube
+            text.toLowerCase().includes('aftn') // Fire TV Cube
           ) {
             // Parse device name from XML
             const nameMatch = text.match(/<friendlyName>([^<]+)<\/friendlyName>/i);
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
             const modelMatch = text.match(/<modelName>([^<]+)<\/modelName>/i);
             const uuidMatch = text.match(/<UDN>uuid:([^<]+)<\/UDN>/i);
 

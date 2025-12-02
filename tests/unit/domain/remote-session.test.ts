@@ -21,7 +21,7 @@ class MockTVSession implements TVSession {
   private commandDelay: number;
   private failCommands: boolean;
   private unsupportedCommands: Set<RemoteCommandType>;
-  
+
   constructor(
     device: TVDevice,
     options: {
@@ -40,7 +40,7 @@ class MockTVSession implements TVSession {
   async sendCommand(command: RemoteCommandType): Promise<CommandResult> {
     // Simulate network delay
     await new Promise((resolve) => setTimeout(resolve, this.commandDelay));
-    
+
     // Check if disconnected
     if (this.status === ConnectionStatus.Disconnected) {
       return {
@@ -52,7 +52,7 @@ class MockTVSession implements TVSession {
         },
       };
     }
-    
+
     // Check if command is unsupported
     if (this.unsupportedCommands.has(command)) {
       return {
@@ -64,7 +64,7 @@ class MockTVSession implements TVSession {
         },
       };
     }
-    
+
     // Simulate command failure
     if (this.failCommands) {
       return {
@@ -76,7 +76,7 @@ class MockTVSession implements TVSession {
         },
       };
     }
-    
+
     return { success: true };
   }
 
@@ -117,7 +117,7 @@ describe('TVSession', () => {
       const device = createMockDevice();
       const session1 = new MockTVSession(device);
       const session2 = new MockTVSession(device);
-      
+
       expect(session1.sessionId).toBeTruthy();
       expect(session2.sessionId).toBeTruthy();
       expect(session1.sessionId).not.toBe(session2.sessionId);
@@ -126,7 +126,7 @@ describe('TVSession', () => {
     it('should store device reference', () => {
       const device = createMockDevice({ name: 'Living Room TV' });
       const session = new MockTVSession(device);
-      
+
       expect(session.device).toBe(device);
       expect(session.device.name).toBe('Living Room TV');
     });
@@ -140,20 +140,20 @@ describe('TVSession', () => {
   describe('Command Sending - Success Path', () => {
     it('should successfully send navigation commands', async () => {
       const session = new MockTVSession(createMockDevice(), { commandDelay: 10 });
-      
+
       const result = await session.sendCommand(RemoteCommandType.Up);
-      
+
       expect(result.success).toBe(true);
       expect(result.error).toBeUndefined();
     });
 
     it('should successfully send volume commands', async () => {
       const session = new MockTVSession(createMockDevice(), { commandDelay: 10 });
-      
+
       const volumeUp = await session.sendCommand(RemoteCommandType.VolumeUp);
       const volumeDown = await session.sendCommand(RemoteCommandType.VolumeDown);
       const mute = await session.sendCommand(RemoteCommandType.Mute);
-      
+
       expect(volumeUp.success).toBe(true);
       expect(volumeDown.success).toBe(true);
       expect(mute.success).toBe(true);
@@ -161,21 +161,21 @@ describe('TVSession', () => {
 
     it('should successfully send playback commands', async () => {
       const session = new MockTVSession(createMockDevice(), { commandDelay: 10 });
-      
+
       const play = await session.sendCommand(RemoteCommandType.Play);
       const pause = await session.sendCommand(RemoteCommandType.Pause);
-      
+
       expect(play.success).toBe(true);
       expect(pause.success).toBe(true);
     });
 
     it('should send commands with acceptable latency', async () => {
       const session = new MockTVSession(createMockDevice(), { commandDelay: 50 });
-      
+
       const startTime = Date.now();
       await session.sendCommand(RemoteCommandType.Select);
       const elapsed = Date.now() - startTime;
-      
+
       // Should complete within reasonable time (200ms is the spec requirement)
       expect(elapsed).toBeLessThan(200);
     });
@@ -185,9 +185,9 @@ describe('TVSession', () => {
     it('should fail when session is disconnected', async () => {
       const session = new MockTVSession(createMockDevice(), { commandDelay: 10 });
       await session.disconnect();
-      
+
       const result = await session.sendCommand(RemoteCommandType.Up);
-      
+
       expect(result.success).toBe(false);
       expect(result.error?.code).toBe(SessionErrorCode.NetworkUnreachable);
     });
@@ -197,9 +197,9 @@ describe('TVSession', () => {
         commandDelay: 10,
         unsupportedCommands: [RemoteCommandType.Power],
       });
-      
+
       const result = await session.sendCommand(RemoteCommandType.Power);
-      
+
       expect(result.success).toBe(false);
       expect(result.error?.code).toBe(SessionErrorCode.CommandUnsupported);
     });
@@ -209,9 +209,9 @@ describe('TVSession', () => {
         commandDelay: 10,
         failCommands: true,
       });
-      
+
       const result = await session.sendCommand(RemoteCommandType.Up);
-      
+
       expect(result.success).toBe(false);
       expect(result.error?.code).toBe(SessionErrorCode.Unknown);
     });
@@ -219,9 +219,9 @@ describe('TVSession', () => {
     it('should include error timestamp', async () => {
       const session = new MockTVSession(createMockDevice(), { commandDelay: 10 });
       await session.disconnect();
-      
+
       const result = await session.sendCommand(RemoteCommandType.Up);
-      
+
       expect(result.error?.at).toBeTruthy();
       expect(() => new Date(result.error!.at)).not.toThrow();
     });
@@ -231,18 +231,18 @@ describe('TVSession', () => {
     it('should transition to disconnected status', async () => {
       const session = new MockTVSession(createMockDevice());
       expect(session.getStatus()).toBe(ConnectionStatus.Connected);
-      
+
       await session.disconnect();
-      
+
       expect(session.getStatus()).toBe(ConnectionStatus.Disconnected);
     });
 
     it('should reject commands after disconnect', async () => {
       const session = new MockTVSession(createMockDevice(), { commandDelay: 10 });
       await session.disconnect();
-      
+
       const result = await session.sendCommand(RemoteCommandType.Up);
-      
+
       expect(result.success).toBe(false);
     });
   });
@@ -250,12 +250,12 @@ describe('TVSession', () => {
   describe('Status Transitions', () => {
     it('should report current status correctly', () => {
       const session = new MockTVSession(createMockDevice());
-      
+
       expect(session.getStatus()).toBe(ConnectionStatus.Connected);
-      
+
       session.setStatus(ConnectionStatus.Reconnecting);
       expect(session.getStatus()).toBe(ConnectionStatus.Reconnecting);
-      
+
       session.setStatus(ConnectionStatus.Disconnected);
       expect(session.getStatus()).toBe(ConnectionStatus.Disconnected);
     });
@@ -264,34 +264,28 @@ describe('TVSession', () => {
   describe('Multiple Commands', () => {
     it('should handle sequential command sending', async () => {
       const session = new MockTVSession(createMockDevice(), { commandDelay: 10 });
-      
-      const commands = [
-        RemoteCommandType.Up,
-        RemoteCommandType.Up,
-        RemoteCommandType.Select,
-      ];
-      
-      const results = await Promise.all(
-        commands.map((cmd) => session.sendCommand(cmd))
-      );
-      
+
+      const commands = [RemoteCommandType.Up, RemoteCommandType.Up, RemoteCommandType.Select];
+
+      const results = await Promise.all(commands.map((cmd) => session.sendCommand(cmd)));
+
       expect(results.every((r) => r.success)).toBe(true);
     });
 
     it('should handle rapid command sending', async () => {
       const session = new MockTVSession(createMockDevice(), { commandDelay: 5 });
-      
+
       const startTime = Date.now();
       const promises: Promise<CommandResult>[] = [];
-      
+
       // Send 10 rapid commands
       for (let i = 0; i < 10; i++) {
         promises.push(session.sendCommand(RemoteCommandType.Up));
       }
-      
+
       const results = await Promise.all(promises);
       const elapsed = Date.now() - startTime;
-      
+
       expect(results.every((r) => r.success)).toBe(true);
       // All should complete reasonably quickly
       expect(elapsed).toBeLessThan(500);

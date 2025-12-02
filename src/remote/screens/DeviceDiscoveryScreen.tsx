@@ -1,7 +1,7 @@
 /**
  * DeviceDiscoveryScreen - Scan and select TV devices
  * Supports scanning, manual entry, and device connection
- * 
+ *
  * Updated to use aggregated discovery for multi-platform simultaneous search
  */
 import React, { useState, useCallback, useEffect, useRef } from 'react';
@@ -23,18 +23,14 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { DeviceListItem } from './DeviceListItem';
-import {
-  TVDevice,
-  TVPlatform,
-  ConnectionStatus,
-} from '../domain/models';
+import { TVDevice, TVPlatform } from '../domain/models';
 import { DiscoveredDevice, TVSession } from '../domain/remote-interfaces';
-import { getAdapter, isAdapterAvailable } from '../protocols/factory';
+import { getAdapter } from '../protocols/factory';
 import { setSession } from '../services/session-store';
-import { 
-  discoverAllDevices, 
+import {
+  discoverAllDevices,
   getSupportedPlatforms,
-  AggregatedDiscoveryResult 
+  AggregatedDiscoveryResult,
 } from '../services/aggregated-discovery';
 import { getDeviceNetworkInfo } from '../services/network-utils';
 
@@ -55,12 +51,12 @@ export const DeviceDiscoveryScreen: React.FC = () => {
   const [devices, setDevices] = useState<TVDevice[]>([]);
   const [connectingDeviceId, setConnectingDeviceId] = useState<string | null>(null);
   const [connectedDeviceId, setConnectedDeviceId] = useState<string | null>(null);
-  
+
   // Manual entry modal
   const [showManualEntry, setShowManualEntry] = useState(false);
   const [manualIp, setManualIp] = useState('');
   const [selectedPlatform, setSelectedPlatform] = useState<TVPlatform>(TVPlatform.Roku);
-  
+
   // Network info for debugging
   const [networkIp, setNetworkIp] = useState<string | null>(null);
 
@@ -74,22 +70,25 @@ export const DeviceDiscoveryScreen: React.FC = () => {
   // and will be used by RemoteControlScreen
 
   // Helper function to convert DiscoveredDevice to TVDevice
-  const convertToTVDevice = useCallback((d: DiscoveredDevice): TVDevice => ({
-    id: d.id,
-    name: d.name,
-    platform: d.platform,
-    ipAddress: d.ipAddress,
-    port: d.port,
-    modelName: undefined,
-    capabilities: {
-      powerControl: true,
-      volumeControl: true,
-      channelControl: false,
-      voiceInput: false,
-      keyboard: true,
-      apps: true,
-    },
-  }), []);
+  const convertToTVDevice = useCallback(
+    (d: DiscoveredDevice): TVDevice => ({
+      id: d.id,
+      name: d.name,
+      platform: d.platform,
+      ipAddress: d.ipAddress,
+      port: d.port,
+      modelName: undefined,
+      capabilities: {
+        powerControl: true,
+        volumeControl: true,
+        channelControl: false,
+        voiceInput: false,
+        keyboard: true,
+        apps: true,
+      },
+    }),
+    []
+  );
 
   // Start device discovery (multi-platform)
   const handleScan = useCallback(async () => {
@@ -113,10 +112,10 @@ export const DeviceDiscoveryScreen: React.FC = () => {
       // Use aggregated discovery for all supported platforms
       const supportedPlatforms = getSupportedPlatforms();
       debug.log(`Supported platforms: ${supportedPlatforms.join(', ')}`);
-      
+
       debug.log('Starting aggregated discovery...');
       const startTime = Date.now();
-      
+
       // Use onDeviceFound callback for real-time UI updates
       const result: AggregatedDiscoveryResult = await discoverAllDevices({
         timeoutMs: 5000,
@@ -127,37 +126,37 @@ export const DeviceDiscoveryScreen: React.FC = () => {
             seenDeviceIdsRef.current.add(device.id);
             const tvDevice = convertToTVDevice(device);
             debug.log(`[Real-time] Adding device: ${device.name} at ${device.ipAddress}`);
-            setDevices(prev => [...prev, tvDevice]);
+            setDevices((prev) => [...prev, tvDevice]);
           }
         },
       });
-      
+
       const elapsed = Date.now() - startTime;
-      
+
       debug.log(`Discovery completed in ${elapsed}ms (reported: ${result.durationMs}ms)`);
       debug.log(`Found ${result.devices.length} device(s) total`);
-      
+
       // Log platform breakdown
       for (const [platform, platformDevices] of result.byPlatform.entries()) {
         if (platformDevices.length > 0) {
           debug.log(`  ${platform}: ${platformDevices.length} device(s)`);
         }
       }
-      
+
       // Log any errors
       if (result.errors.length > 0) {
         debug.warn(`Discovery had ${result.errors.length} error(s):`);
-        result.errors.forEach(e => debug.warn(`  ${e.platform}: ${e.error.message}`));
+        result.errors.forEach((e) => debug.warn(`  ${e.platform}: ${e.error.message}`));
       }
 
       // Final check - ensure all devices are in the list
       // (in case any were missed by the real-time callback)
-      setDevices(prev => {
-        const existingIds = new Set(prev.map(d => d.id));
+      setDevices((prev) => {
+        const existingIds = new Set(prev.map((d) => d.id));
         const newDevices = result.devices
-          .filter(d => !existingIds.has(d.id))
+          .filter((d) => !existingIds.has(d.id))
           .map(convertToTVDevice);
-        
+
         if (newDevices.length > 0) {
           debug.log(`Adding ${newDevices.length} missed device(s)`);
           return [...prev, ...newDevices];
@@ -195,65 +194,64 @@ export const DeviceDiscoveryScreen: React.FC = () => {
   }, [handleScan]);
 
   // Connect to a device
-  const handleConnect = useCallback(async (device: TVDevice) => {
-    if (connectingDeviceId) {
-      debug.warn('Already connecting to a device, ignoring...');
-      return;
-    }
+  const handleConnect = useCallback(
+    async (device: TVDevice) => {
+      if (connectingDeviceId) {
+        debug.warn('Already connecting to a device, ignoring...');
+        return;
+      }
 
-    debug.log(`Connecting to device: ${device.name} (${device.id})`);
-    debug.log(`  IP: ${device.ipAddress}:${device.port}`);
-    debug.log(`  Platform: ${device.platform}`);
-    
-    setConnectingDeviceId(device.id);
+      debug.log(`Connecting to device: ${device.name} (${device.id})`);
+      debug.log(`  IP: ${device.ipAddress}:${device.port}`);
+      debug.log(`  Platform: ${device.platform}`);
 
-    try {
-      debug.log('Getting adapter...');
-      const adapter = getAdapter(device.platform);
-      
-      debug.log('Initiating connection...');
-      const startTime = Date.now();
-      const session = await adapter.connect(device);
-      const elapsed = Date.now() - startTime;
-      
-      debug.log(`Connection attempt completed in ${elapsed}ms`);
+      setConnectingDeviceId(device.id);
 
-      if (session) {
-        debug.log(`Connected successfully! Session ID: ${session.sessionId}`);
-        sessionRef.current = session;
-        setConnectedDeviceId(device.id);
+      try {
+        debug.log('Getting adapter...');
+        const adapter = getAdapter(device.platform);
 
-        // Store session in global store for RemoteControlScreen
-        setSession(device, session);
+        debug.log('Initiating connection...');
+        const startTime = Date.now();
+        const session = await adapter.connect(device);
+        const elapsed = Date.now() - startTime;
 
-        // Navigate to remote control
-        Alert.alert(
-          '连接成功',
-          `已连接到 ${device.name}`,
-          [
+        debug.log(`Connection attempt completed in ${elapsed}ms`);
+
+        if (session) {
+          debug.log(`Connected successfully! Session ID: ${session.sessionId}`);
+          sessionRef.current = session;
+          setConnectedDeviceId(device.id);
+
+          // Store session in global store for RemoteControlScreen
+          setSession(device, session);
+
+          // Navigate to remote control
+          Alert.alert('连接成功', `已连接到 ${device.name}`, [
             {
               text: '开始控制',
               onPress: () => router.replace('/remote/control'),
             },
-          ]
-        );
-      } else {
-        debug.error('Connection failed: No session returned');
-        Alert.alert('连接失败', '无法连接到设备，请确保设备已开启。');
+          ]);
+        } else {
+          debug.error('Connection failed: No session returned');
+          Alert.alert('连接失败', '无法连接到设备，请确保设备已开启。');
+        }
+      } catch (error) {
+        debug.error('Connection failed with error:', error);
+        Alert.alert('连接失败', `连接错误: ${error}`);
+      } finally {
+        setConnectingDeviceId(null);
+        debug.log('Connection attempt finished');
       }
-    } catch (error) {
-      debug.error('Connection failed with error:', error);
-      Alert.alert('连接失败', `连接错误: ${error}`);
-    } finally {
-      setConnectingDeviceId(null);
-      debug.log('Connection attempt finished');
-    }
-  }, [connectingDeviceId]);
+    },
+    [connectingDeviceId]
+  );
 
   // Manual entry submit
   const handleManualAdd = useCallback(async () => {
     debug.log('Manual add triggered');
-    
+
     if (!manualIp.trim()) {
       debug.warn('Empty IP address');
       Alert.alert('错误', '请输入 IP 地址');
@@ -269,21 +267,30 @@ export const DeviceDiscoveryScreen: React.FC = () => {
     }
 
     debug.log(`Adding manual device: ${selectedPlatform} at ${manualIp}`);
-    
+
     // Dismiss keyboard before proceeding
     Keyboard.dismiss();
 
     const manualDevice: TVDevice = {
       id: `manual-${manualIp}-${Date.now()}`,
-      name: `${selectedPlatform === TVPlatform.AndroidTV ? 'Android TV' : 
-             selectedPlatform === TVPlatform.FireTV ? 'Fire TV' : 
-             selectedPlatform} (${manualIp})`,
+      name: `${
+        selectedPlatform === TVPlatform.AndroidTV
+          ? 'Android TV'
+          : selectedPlatform === TVPlatform.FireTV
+            ? 'Fire TV'
+            : selectedPlatform
+      } (${manualIp})`,
       platform: selectedPlatform,
       ipAddress: manualIp.trim(),
       // Default ports per platform
-      port: selectedPlatform === TVPlatform.Roku ? 8060 : 
-            selectedPlatform === TVPlatform.AndroidTV ? 5555 :
-            selectedPlatform === TVPlatform.FireTV ? 5555 : 8080,
+      port:
+        selectedPlatform === TVPlatform.Roku
+          ? 8060
+          : selectedPlatform === TVPlatform.AndroidTV
+            ? 5555
+            : selectedPlatform === TVPlatform.FireTV
+              ? 5555
+              : 8080,
       capabilities: {
         powerControl: true,
         volumeControl: true,
@@ -305,25 +312,24 @@ export const DeviceDiscoveryScreen: React.FC = () => {
   }, [manualIp, selectedPlatform, handleConnect]);
 
   // Render device item
-  const renderDevice = useCallback(({ item }: { item: TVDevice }) => (
-    <DeviceListItem
-      device={item}
-      isConnecting={connectingDeviceId === item.id}
-      isConnected={connectedDeviceId === item.id}
-      onPress={handleConnect}
-    />
-  ), [connectingDeviceId, connectedDeviceId, handleConnect]);
+  const renderDevice = useCallback(
+    ({ item }: { item: TVDevice }) => (
+      <DeviceListItem
+        device={item}
+        isConnecting={connectingDeviceId === item.id}
+        isConnected={connectedDeviceId === item.id}
+        onPress={handleConnect}
+      />
+    ),
+    [connectingDeviceId, connectedDeviceId, handleConnect]
+  );
 
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.title}>发现设备</Text>
-        <Pressable
-          style={styles.scanButton}
-          onPress={handleScan}
-          disabled={isScanning}
-        >
+        <Pressable style={styles.scanButton} onPress={handleScan} disabled={isScanning}>
           {isScanning ? (
             <ActivityIndicator size="small" color="#fff" />
           ) : (
@@ -337,9 +343,7 @@ export const DeviceDiscoveryScreen: React.FC = () => {
         <View style={styles.scanningContainer}>
           <ActivityIndicator size="large" color="#4CAF50" />
           <Text style={styles.scanningText}>正在扫描网络...</Text>
-          {networkIp && (
-            <Text style={styles.networkIpText}>手机 IP: {networkIp}</Text>
-          )}
+          {networkIp && <Text style={styles.networkIpText}>手机 IP: {networkIp}</Text>}
         </View>
       )}
 
@@ -353,19 +357,14 @@ export const DeviceDiscoveryScreen: React.FC = () => {
           !isScanning ? (
             <View style={styles.emptyContainer}>
               <Text style={styles.emptyText}>未发现设备</Text>
-              <Text style={styles.emptyHint}>
-                请确保电视已开启并连接到同一 Wi-Fi
-              </Text>
+              <Text style={styles.emptyHint}>请确保电视已开启并连接到同一 Wi-Fi</Text>
             </View>
           ) : null
         }
       />
 
       {/* Manual entry button */}
-      <Pressable
-        style={styles.manualButton}
-        onPress={() => setShowManualEntry(true)}
-      >
+      <Pressable style={styles.manualButton} onPress={() => setShowManualEntry(true)}>
         <Text style={styles.manualButtonText}>手动添加设备</Text>
       </Pressable>
 
@@ -376,22 +375,19 @@ export const DeviceDiscoveryScreen: React.FC = () => {
         transparent={true}
         onRequestClose={() => setShowManualEntry(false)}
       >
-        <KeyboardAvoidingView 
+        <KeyboardAvoidingView
           style={styles.modalOverlay}
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
-          <Pressable 
-            style={styles.modalBackdrop} 
+          <Pressable
+            style={styles.modalBackdrop}
             onPress={() => {
               Keyboard.dismiss();
               setShowManualEntry(false);
             }}
           />
           <View style={styles.modalContent}>
-            <ScrollView 
-              bounces={false}
-              keyboardShouldPersistTaps="handled"
-            >
+            <ScrollView bounces={false} keyboardShouldPersistTaps="handled">
               <Text style={styles.modalTitle}>手动添加设备</Text>
 
               {/* Platform selector */}
@@ -412,9 +408,11 @@ export const DeviceDiscoveryScreen: React.FC = () => {
                         selectedPlatform === platform && styles.platformOptionTextSelected,
                       ]}
                     >
-                      {platform === TVPlatform.AndroidTV ? 'Android TV' : 
-                       platform === TVPlatform.FireTV ? 'Fire TV' : 
-                       platform}
+                      {platform === TVPlatform.AndroidTV
+                        ? 'Android TV'
+                        : platform === TVPlatform.FireTV
+                          ? 'Fire TV'
+                          : platform}
                     </Text>
                   </Pressable>
                 ))}

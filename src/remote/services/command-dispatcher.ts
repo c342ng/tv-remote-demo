@@ -2,12 +2,7 @@
  * Command Dispatcher
  * Maps normalized commands to PlatformAdapter and handles errors
  */
-import {
-  RemoteCommandType,
-  TVDevice,
-  TVCapabilities,
-  SessionErrorCode,
-} from '../domain/models';
+import { RemoteCommandType, TVDevice, TVCapabilities, SessionErrorCode } from '../domain/models';
 import { CommandResult, TVSession } from '../domain/remote-interfaces';
 import { logger } from './logger';
 
@@ -234,9 +229,7 @@ export function getCommandMetadata(command: RemoteCommandType): CommandMetadata 
 /**
  * Get all commands for a category
  */
-export function getCommandsByCategory(
-  category: CommandMetadata['category']
-): RemoteCommandType[] {
+export function getCommandsByCategory(category: CommandMetadata['category']): RemoteCommandType[] {
   return Object.entries(COMMAND_METADATA)
     .filter(([_, meta]) => meta.category === category)
     .map(([cmd, _]) => cmd as RemoteCommandType);
@@ -303,10 +296,16 @@ export class CommandDispatcher {
     // Check if command is supported
     if (!this.isCommandAvailable(command)) {
       const metadata = getCommandMetadata(command);
-      logger.command('warn', 'Command not supported by device', this.device.id, this.session.sessionId, {
-        command,
-        commandName: metadata?.displayName,
-      });
+      logger.command(
+        'warn',
+        'Command not supported by device',
+        this.device.id,
+        this.session.sessionId,
+        {
+          command,
+          commandName: metadata?.displayName,
+        }
+      );
       return {
         success: false,
         error: {
@@ -324,10 +323,16 @@ export class CommandDispatcher {
       const elapsed = Date.now() - startTime;
 
       if (result.success) {
-        logger.command('info', 'Command sent successfully', this.device.id, this.session.sessionId, {
-          command,
-          elapsed,
-        });
+        logger.command(
+          'info',
+          'Command sent successfully',
+          this.device.id,
+          this.session.sessionId,
+          {
+            command,
+            elapsed,
+          }
+        );
       } else {
         logger.command('warn', 'Command failed', this.device.id, this.session.sessionId, {
           command,
@@ -359,10 +364,7 @@ export class CommandDispatcher {
   /**
    * Dispatch multiple commands in sequence
    */
-  async dispatchSequence(
-    commands: RemoteCommandType[],
-    delayMs = 100
-  ): Promise<CommandResult[]> {
+  async dispatchSequence(commands: RemoteCommandType[], delayMs = 100): Promise<CommandResult[]> {
     const results: CommandResult[] = [];
 
     for (const command of commands) {

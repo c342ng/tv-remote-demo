@@ -46,17 +46,17 @@ function getDgramModule(): any | null {
     // Dynamic require to avoid import-time crashes
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const dgram = require('react-native-udp');
-    
+
     // Check if the module is properly initialized
     if (!dgram) {
       debug.warn('react-native-udp module is null');
       return null;
     }
-    
+
     // The module exports a class with static createSocket method
     // Check both direct and default export patterns
     const createSocket = dgram.createSocket || dgram.default?.createSocket;
-    
+
     if (typeof createSocket !== 'function') {
       debug.warn('react-native-udp.createSocket is not a function');
       debug.log('dgram type:', typeof dgram);
@@ -64,7 +64,7 @@ function getDgramModule(): any | null {
       debug.log('dgram.default:', dgram?.default);
       return null;
     }
-    
+
     // Return a wrapper that uses the correct createSocket
     return {
       createSocket: createSocket.bind(dgram.default || dgram),
@@ -77,7 +77,7 @@ function getDgramModule(): any | null {
 
 /**
  * SSDP M-SEARCH request template for Roku devices
- * 
+ *
  * Format follows RFC 2616 and UPnP standards:
  * - M-SEARCH * HTTP/1.1
  * - Host: multicast address:port
@@ -99,7 +99,7 @@ function buildMSearchRequest(serviceType: string, maxWaitSeconds: number = 2): s
 
 /**
  * Parse SSDP response headers
- * 
+ *
  * Response format:
  * ```
  * HTTP/1.1 200 OK
@@ -162,7 +162,7 @@ function parseUsn(usn: string): string | null {
 
 /**
  * Fetch device info from Roku ECP endpoint
- * 
+ *
  * Calls /query/device-info to get device name, model, and serial number
  */
 async function fetchDeviceInfo(
@@ -236,7 +236,7 @@ export async function discoverRokuViaSsdp(
     debug.error('SSDP discovery not available: react-native-udp module not loaded');
     return [];
   }
-  
+
   debug.log('react-native-udp module loaded successfully');
 
   return new Promise((resolve) => {
@@ -285,10 +285,10 @@ export async function discoverRokuViaSsdp(
 
     try {
       debug.log('Creating UDP socket...');
-      
+
       // Create UDP socket
       socket = dgram.createSocket({ type: 'udp4' });
-      
+
       debug.log('UDP socket created successfully');
 
       // Handle socket errors
@@ -305,7 +305,7 @@ export async function discoverRokuViaSsdp(
         }
 
         debug.log(`Received SSDP response from ${rinfo.address}:${rinfo.port}`);
-        
+
         const response = msg.toString('utf8');
         debug.log(`Response content (first 200 chars): ${response.substring(0, 200)}`);
 
@@ -356,7 +356,7 @@ export async function discoverRokuViaSsdp(
 
       // Bind to a random port and send M-SEARCH request
       debug.log('Binding socket to random port...');
-      
+
       socket.bind(0, () => {
         if (isCompleted || !socket) {
           debug.log('Socket bind callback: already completed or socket null');
@@ -375,8 +375,8 @@ export async function discoverRokuViaSsdp(
         // Using simplified API: send(msg, port, address, callback)
         socket.send(
           request,
-          undefined,  // offset - not needed for string
-          undefined,  // length - not needed for string  
+          undefined, // offset - not needed for string
+          undefined, // length - not needed for string
           SSDP_PORT,
           SSDP_MULTICAST_ADDRESS,
           (err: Error | null) => {

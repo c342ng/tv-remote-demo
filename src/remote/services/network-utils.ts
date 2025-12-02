@@ -1,7 +1,7 @@
 /**
  * Network utilities for device discovery
  * Provides functions to get device network info and calculate subnet ranges
- * 
+ *
  * Uses react-native-network-info for accurate subnet mask information
  */
 
@@ -47,9 +47,9 @@ export interface SubnetInfo {
  * @example "255.255.0.0" => 16
  */
 export function subnetMaskToCidr(mask: string): number {
-  const parts = mask.split('.').map(p => parseInt(p, 10));
+  const parts = mask.split('.').map((p) => parseInt(p, 10));
   if (parts.length !== 4) return 24; // default to /24
-  
+
   let cidr = 0;
   for (const part of parts) {
     // Count set bits in each octet
@@ -86,21 +86,21 @@ export function getSubnetPrefix16(ipAddress: string): string | null {
  * Check if an IP address is a private/local network address
  */
 export function isPrivateIP(ipAddress: string): boolean {
-  const parts = ipAddress.split('.').map(p => parseInt(p, 10));
+  const parts = ipAddress.split('.').map((p) => parseInt(p, 10));
   if (parts.length !== 4) return false;
-  
+
   // 10.0.0.0 - 10.255.255.255 (Class A private)
   if (parts[0] === 10) return true;
-  
+
   // 172.16.0.0 - 172.31.255.255 (Class B private)
   if (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) return true;
-  
+
   // 192.168.0.0 - 192.168.255.255 (Class C private)
   if (parts[0] === 192 && parts[1] === 168) return true;
-  
+
   // 169.254.0.0 - 169.254.255.255 (Link-local)
   if (parts[0] === 169 && parts[1] === 254) return true;
-  
+
   return false;
 }
 
@@ -115,21 +115,21 @@ export async function getDeviceNetworkInfo(): Promise<DeviceNetworkInfo | null> 
       NetworkInfo.getGatewayIPAddress(),
       NetworkInfo.getBroadcast(),
     ]);
-    
+
     debug.log('Network info retrieved:');
     debug.log(`  IP: ${ipAddress}`);
     debug.log(`  Subnet: ${subnetMask}`);
     debug.log(`  Gateway: ${gateway}`);
     debug.log(`  Broadcast: ${broadcast}`);
-    
+
     if (!ipAddress || !subnetMask) {
       debug.warn('Missing IP or subnet mask');
       return null;
     }
-    
+
     const cidrPrefix = subnetMaskToCidr(subnetMask);
     debug.log(`  CIDR: /${cidrPrefix}`);
-    
+
     return {
       ipAddress,
       subnetMask,
@@ -147,16 +147,16 @@ export async function getDeviceNetworkInfo(): Promise<DeviceNetworkInfo | null> 
  * Generate all /24 subnet prefixes within a larger subnet
  * For example, if device is at 10.13.12.45/16, generate:
  * - 10.13.0., 10.13.1., ..., 10.13.255.
- * 
+ *
  * @param ipAddress Device IP address
  * @param cidrPrefix CIDR prefix length (e.g., 16, 24)
  */
 export function generateSubnetPrefixes(ipAddress: string, cidrPrefix: number): string[] {
-  const parts = ipAddress.split('.').map(p => parseInt(p, 10));
+  const parts = ipAddress.split('.').map((p) => parseInt(p, 10));
   if (parts.length !== 4) return [];
-  
+
   const prefixes: string[] = [];
-  
+
   if (cidrPrefix >= 24) {
     // /24 or smaller - just scan this subnet
     prefixes.push(`${parts[0]}.${parts[1]}.${parts[2]}.`);
@@ -166,7 +166,7 @@ export function generateSubnetPrefixes(ipAddress: string, cidrPrefix: number): s
     // For /20: 16 subnets
     const numSubnets = Math.pow(2, 24 - cidrPrefix);
     const startThirdOctet = parts[2] & (256 - numSubnets); // Align to subnet boundary
-    
+
     for (let i = 0; i < numSubnets && i < 256; i++) {
       prefixes.push(`${parts[0]}.${parts[1]}.${startThirdOctet + i}.`);
     }
@@ -180,7 +180,7 @@ export function generateSubnetPrefixes(ipAddress: string, cidrPrefix: number): s
       }
     }
   }
-  
+
   return prefixes;
 }
 
@@ -192,10 +192,10 @@ export function generateSubnetPrefixes(ipAddress: string, cidrPrefix: number): s
 export async function getSubnetsToScan(): Promise<SubnetInfo[]> {
   const subnets: SubnetInfo[] = [];
   const addedPrefixes = new Set<string>();
-  
+
   // Get device network info
   const networkInfo = await getDeviceNetworkInfo();
-  
+
   if (networkInfo && isPrivateIP(networkInfo.ipAddress)) {
     // Priority 1: All /24 subnets within the device's actual subnet
     // For /23 (255.255.254.0): includes both 10.13.12.x and 10.13.13.x
@@ -205,10 +205,12 @@ export async function getSubnetsToScan(): Promise<SubnetInfo[]> {
       networkInfo.ipAddress,
       networkInfo.cidrPrefix
     );
-    
-    debug.log(`Priority 1 - Actual subnet /${networkInfo.cidrPrefix}: ${actualSubnetPrefixes.length} /24 blocks`);
-    actualSubnetPrefixes.forEach(p => debug.log(`  - ${p}x`));
-    
+
+    debug.log(
+      `Priority 1 - Actual subnet /${networkInfo.cidrPrefix}: ${actualSubnetPrefixes.length} /24 blocks`
+    );
+    actualSubnetPrefixes.forEach((p) => debug.log(`  - ${p}x`));
+
     for (const prefix of actualSubnetPrefixes) {
       if (!addedPrefixes.has(prefix)) {
         subnets.push({
@@ -220,9 +222,9 @@ export async function getSubnetsToScan(): Promise<SubnetInfo[]> {
         addedPrefixes.add(prefix);
       }
     }
-    
+
     // Priority 2: Common fallback subnets (in case device is on different VLAN)
-    const fallbacks = FALLBACK_SUBNET_PREFIXES.filter(p => !addedPrefixes.has(p));
+    const fallbacks = FALLBACK_SUBNET_PREFIXES.filter((p) => !addedPrefixes.has(p));
     for (const prefix of fallbacks) {
       subnets.push({
         prefix,
@@ -246,7 +248,7 @@ export async function getSubnetsToScan(): Promise<SubnetInfo[]> {
       addedPrefixes.add(prefix);
     }
   }
-  
+
   // Sort by priority, then put primary first within same priority
   subnets.sort((a, b) => {
     if (a.priority !== b.priority) return a.priority - b.priority;
@@ -254,7 +256,7 @@ export async function getSubnetsToScan(): Promise<SubnetInfo[]> {
     if (!a.isPrimary && b.isPrimary) return 1;
     return 0;
   });
-  
+
   debug.log(`Total subnets to scan: ${subnets.length}`);
   return subnets;
 }
@@ -263,14 +265,14 @@ export async function getSubnetsToScan(): Promise<SubnetInfo[]> {
  * Fallback subnet prefixes for common home/office networks
  */
 export const FALLBACK_SUBNET_PREFIXES = [
-  '192.168.1.',   // Most common home router default
-  '192.168.0.',   // Common alternative (Netgear, TP-Link, etc.)
-  '192.168.2.',   // Some routers use this
-  '10.0.0.',      // Apple AirPort, some enterprise
-  '10.0.1.',      // Apple AirPort alternative
-  '10.13.12.',    // Common enterprise/VPN subnet
-  '172.16.0.',    // Class B private
-  '172.16.1.',    // Class B private alternative
+  '192.168.1.', // Most common home router default
+  '192.168.0.', // Common alternative (Netgear, TP-Link, etc.)
+  '192.168.2.', // Some routers use this
+  '10.0.0.', // Apple AirPort, some enterprise
+  '10.0.1.', // Apple AirPort alternative
+  '10.13.12.', // Common enterprise/VPN subnet
+  '172.16.0.', // Class B private
+  '172.16.1.', // Class B private alternative
 ];
 
 /**
@@ -278,20 +280,22 @@ export const FALLBACK_SUBNET_PREFIXES = [
  */
 export async function getDeviceSubnets(): Promise<SubnetInfo[]> {
   const networkInfo = await getDeviceNetworkInfo();
-  
+
   if (!networkInfo || !isPrivateIP(networkInfo.ipAddress)) {
     return [];
   }
-  
+
   const prefix = getSubnetPrefix24(networkInfo.ipAddress);
   if (!prefix) return [];
-  
-  return [{
-    prefix,
-    deviceIp: networkInfo.ipAddress,
-    isPrimary: true,
-    priority: 1,
-  }];
+
+  return [
+    {
+      prefix,
+      deviceIp: networkInfo.ipAddress,
+      isPrimary: true,
+      priority: 1,
+    },
+  ];
 }
 
 /**
@@ -300,13 +304,13 @@ export async function getDeviceSubnets(): Promise<SubnetInfo[]> {
  */
 export function generateSubnetIPs(prefix: string, excludeIp?: string): string[] {
   const ips: string[] = [];
-  
+
   for (let i = 1; i <= 254; i++) {
     const ip = `${prefix}${i}`;
     if (ip !== excludeIp) {
       ips.push(ip);
     }
   }
-  
+
   return ips;
 }

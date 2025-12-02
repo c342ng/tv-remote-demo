@@ -10,10 +10,7 @@ import {
   RemoteButton,
   RemoteProfile,
 } from '@remote/domain/models';
-import {
-  isCommandSupported,
-  getSupportedCommands,
-} from '@remote/services/command-dispatcher';
+import { isCommandSupported, getSupportedCommands } from '@remote/services/command-dispatcher';
 
 describe('US3: Cross-platform UI Integration', () => {
   /**
@@ -43,12 +40,42 @@ describe('US3: Cross-platform UI Integration', () => {
     { id: 'select', label: '确认', command: RemoteCommandType.Select },
     { id: 'back', label: '返回', command: RemoteCommandType.Back },
     { id: 'home', label: '主页', command: RemoteCommandType.Home },
-    { id: 'power', label: '电源', command: RemoteCommandType.Power, requiresCapability: 'powerControl' },
-    { id: 'vol-up', label: '音量+', command: RemoteCommandType.VolumeUp, requiresCapability: 'volumeControl' },
-    { id: 'vol-down', label: '音量-', command: RemoteCommandType.VolumeDown, requiresCapability: 'volumeControl' },
-    { id: 'mute', label: '静音', command: RemoteCommandType.Mute, requiresCapability: 'volumeControl' },
-    { id: 'ch-up', label: '频道+', command: RemoteCommandType.ChannelUp, requiresCapability: 'channelControl' },
-    { id: 'ch-down', label: '频道-', command: RemoteCommandType.ChannelDown, requiresCapability: 'channelControl' },
+    {
+      id: 'power',
+      label: '电源',
+      command: RemoteCommandType.Power,
+      requiresCapability: 'powerControl',
+    },
+    {
+      id: 'vol-up',
+      label: '音量+',
+      command: RemoteCommandType.VolumeUp,
+      requiresCapability: 'volumeControl',
+    },
+    {
+      id: 'vol-down',
+      label: '音量-',
+      command: RemoteCommandType.VolumeDown,
+      requiresCapability: 'volumeControl',
+    },
+    {
+      id: 'mute',
+      label: '静音',
+      command: RemoteCommandType.Mute,
+      requiresCapability: 'volumeControl',
+    },
+    {
+      id: 'ch-up',
+      label: '频道+',
+      command: RemoteCommandType.ChannelUp,
+      requiresCapability: 'channelControl',
+    },
+    {
+      id: 'ch-down',
+      label: '频道-',
+      command: RemoteCommandType.ChannelDown,
+      requiresCapability: 'channelControl',
+    },
   ];
 
   const standardProfile: RemoteProfile = {
@@ -84,7 +111,7 @@ describe('US3: Cross-platform UI Integration', () => {
       {
         platform: TVPlatform.FireTV,
         capabilities: {
-          powerControl: false,  // Fire TV stick may not control TV power
+          powerControl: false, // Fire TV stick may not control TV power
           volumeControl: true,
           channelControl: false,
           voiceInput: true,
@@ -100,8 +127,19 @@ describe('US3: Cross-platform UI Integration', () => {
         // Profile doesn't change based on platform
         expect(standardProfile.buttons).toHaveLength(13);
         expect(standardProfile.buttons.map((b) => b.id)).toEqual([
-          'up', 'down', 'left', 'right', 'select', 'back', 'home',
-          'power', 'vol-up', 'vol-down', 'mute', 'ch-up', 'ch-down',
+          'up',
+          'down',
+          'left',
+          'right',
+          'select',
+          'back',
+          'home',
+          'power',
+          'vol-up',
+          'vol-down',
+          'mute',
+          'ch-up',
+          'ch-down',
         ]);
       });
     });
@@ -111,7 +149,9 @@ describe('US3: Cross-platform UI Integration', () => {
         const upButton = standardProfile.buttons.find((b) => b.command === RemoteCommandType.Up);
         expect(upButton?.label).toBe('上');
 
-        const selectButton = standardProfile.buttons.find((b) => b.command === RemoteCommandType.Select);
+        const selectButton = standardProfile.buttons.find(
+          (b) => b.command === RemoteCommandType.Select
+        );
         expect(selectButton?.label).toBe('确认');
       });
     });
@@ -135,10 +175,11 @@ describe('US3: Cross-platform UI Integration', () => {
 
       // Should show: nav (7) + power (1) + volume (3) = 11
       expect(visibleButtons).toHaveLength(11);
-      
+
       // Channel buttons should be hidden
       const channelButtons = visibleButtons.filter(
-        (b) => b.command === RemoteCommandType.ChannelUp || b.command === RemoteCommandType.ChannelDown
+        (b) =>
+          b.command === RemoteCommandType.ChannelUp || b.command === RemoteCommandType.ChannelDown
       );
       expect(channelButtons).toHaveLength(0);
     });
@@ -265,15 +306,16 @@ describe('US3: Cross-platform UI Integration', () => {
       id: string,
       platform: TVPlatform,
       caps: Partial<TVCapabilities>
-    ): TVDevice => createDevice(platform, `${platform} TV`, {
-      powerControl: false,
-      volumeControl: false,
-      channelControl: false,
-      voiceInput: false,
-      keyboard: true,
-      apps: true,
-      ...caps,
-    });
+    ): TVDevice =>
+      createDevice(platform, `${platform} TV`, {
+        powerControl: false,
+        volumeControl: false,
+        channelControl: false,
+        voiceInput: false,
+        keyboard: true,
+        apps: true,
+        ...caps,
+      });
 
     it('should update button states when switching devices', () => {
       // Device 1: Roku with power and volume
@@ -315,7 +357,7 @@ describe('US3: Cross-platform UI Integration', () => {
 
       platforms.forEach((platform) => {
         const device = createDeviceWithCaps('test', platform, {});
-        
+
         navCommands.forEach((cmd) => {
           expect(isCommandSupported(cmd, device.capabilities)).toBe(true);
         });

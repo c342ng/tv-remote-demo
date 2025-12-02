@@ -63,15 +63,11 @@ export const ConnectionStatusBar: React.FC<ConnectionStatusBarProps> = ({
 }) => {
   const statusColor = STATUS_COLORS[status];
   const statusLabel = STATUS_LABELS[status];
-  const isConnecting = status === ConnectionStatus.Connecting || 
-                       status === ConnectionStatus.Reconnecting;
+  const isConnecting =
+    status === ConnectionStatus.Connecting || status === ConnectionStatus.Reconnecting;
 
   return (
-    <Pressable
-      style={styles.container}
-      onPress={onPress}
-      disabled={!onPress}
-    >
+    <Pressable style={styles.container} onPress={onPress} disabled={!onPress}>
       {/* Device switcher button (left side) */}
       {onDeviceSwitch && (
         <TouchableOpacity
@@ -93,11 +89,7 @@ export const ConnectionStatusBar: React.FC<ConnectionStatusBarProps> = ({
       <View style={styles.statusSection}>
         <View style={[styles.statusDot, { backgroundColor: statusColor }]} />
         {isConnecting && (
-          <ActivityIndicator
-            size="small"
-            color={statusColor}
-            style={styles.spinner}
-          />
+          <ActivityIndicator size="small" color={statusColor} style={styles.spinner} />
         )}
       </View>
 
@@ -122,17 +114,11 @@ export const ConnectionStatusBar: React.FC<ConnectionStatusBarProps> = ({
 
       {/* Status label */}
       <View style={styles.statusLabelSection}>
-        <Text style={[styles.statusLabel, { color: statusColor }]}>
-          {statusLabel}
-        </Text>
-        
+        <Text style={[styles.statusLabel, { color: statusColor }]}>{statusLabel}</Text>
+
         {/* Disconnect button (only when connected) */}
         {status === ConnectionStatus.Connected && onDisconnect && (
-          <Pressable
-            style={styles.disconnectButton}
-            onPress={onDisconnect}
-            hitSlop={8}
-          >
+          <Pressable style={styles.disconnectButton} onPress={onDisconnect} hitSlop={8}>
             <Text style={styles.disconnectText}>断开</Text>
           </Pressable>
         )}

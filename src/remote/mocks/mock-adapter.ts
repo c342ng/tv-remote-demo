@@ -60,8 +60,10 @@ export class MockTVSession implements TVSession {
   readonly sessionId: string;
   readonly device: TVDevice;
   private status: ConnectionStatus = ConnectionStatus.Connected;
-  private commandLog: Array<{ command: RemoteCommandType; timestamp: string }> = [];
-  private config: Required<Pick<MockAdapterConfig, 'commandDelay' | 'failingCommands' | 'unsupportedCommands'>>;
+  private commandLog: { command: RemoteCommandType; timestamp: string }[] = [];
+  private config: Required<
+    Pick<MockAdapterConfig, 'commandDelay' | 'failingCommands' | 'unsupportedCommands'>
+  >;
 
   constructor(device: TVDevice, config?: Partial<MockAdapterConfig>) {
     this.sessionId = `mock-session-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
@@ -142,7 +144,7 @@ export class MockTVSession implements TVSession {
   // ─────────────────────────────────────────────────────────────────────────
 
   /** Get command history */
-  getCommandLog(): Array<{ command: RemoteCommandType; timestamp: string }> {
+  getCommandLog(): { command: RemoteCommandType; timestamp: string }[] {
     return [...this.commandLog];
   }
 
@@ -171,7 +173,7 @@ export class MockPlatformAdapter implements PlatformAdapter {
   private status: ConnectionStatus = ConnectionStatus.Idle;
   private config: Required<MockAdapterConfig>;
   private activeSession: MockTVSession | null = null;
-  private discoveryHistory: Array<{ timestamp: string; deviceCount: number }> = [];
+  private discoveryHistory: { timestamp: string; deviceCount: number }[] = [];
 
   constructor(platform: TVPlatform = TVPlatform.Roku, config?: MockAdapterConfig) {
     this.platform = platform;
@@ -257,7 +259,7 @@ export class MockPlatformAdapter implements PlatformAdapter {
   }
 
   /** Get discovery history */
-  getDiscoveryHistory(): Array<{ timestamp: string; deviceCount: number }> {
+  getDiscoveryHistory(): { timestamp: string; deviceCount: number }[] {
     return [...this.discoveryHistory];
   }
 

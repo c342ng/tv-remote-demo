@@ -2,19 +2,16 @@
  * Error Scenarios and Edge Cases Tests
  * Tests for offline devices, network issues, and boundary conditions
  */
-import {
-  ConnectionStatus,
-  SessionErrorCode,
-  RemoteCommandType,
-} from '@remote/domain/models';
+import { ConnectionStatus, SessionErrorCode, RemoteCommandType } from '@remote/domain/models';
 import { SessionManager } from '@remote/services/session-manager';
-import { createMockDevice, MockPlatformAdapter } from '@remote/mocks/mock-adapter';
+import { createMockDevice } from '@remote/mocks/mock-adapter';
 import { isCommandSupported } from '@remote/services/command-dispatcher';
+import { MockPlatformAdapter } from '@remote/mocks/mock-adapter';
 
 // Mock the factory module to return our mock adapter
 jest.mock('@remote/protocols/factory', () => ({
-  getAdapterForDevice: jest.fn(() => new (require('@remote/mocks/mock-adapter').MockPlatformAdapter)()),
-  getAdapter: jest.fn(() => new (require('@remote/mocks/mock-adapter').MockPlatformAdapter)()),
+  getAdapterForDevice: jest.fn(() => new MockPlatformAdapter()),
+  getAdapter: jest.fn(() => new MockPlatformAdapter()),
   isAdapterAvailable: jest.fn(() => true),
 }));
 
@@ -37,7 +34,7 @@ describe('Error Scenarios and Edge Cases', () => {
   describe('Device Offline Scenarios', () => {
     it('should emit error event when device goes offline during session', async () => {
       const device = createMockDevice();
-      
+
       // Connect successfully first
       const connected = await sessionManager.connect(device);
       expect(connected).toBe(true);
@@ -51,14 +48,14 @@ describe('Error Scenarios and Edge Cases', () => {
       // Session should handle disconnect gracefully
       await sessionManager.disconnect();
 
-      expect(events.some(e => e.type === 'disconnected')).toBe(true);
+      expect(events.some((e) => e.type === 'disconnected')).toBe(true);
     });
   });
 
   describe('Network Switching Scenarios', () => {
     it('should attempt reconnection after network change', async () => {
       const device = createMockDevice();
-      
+
       // Connect first
       await sessionManager.connect(device);
       expect(sessionManager.isConnected()).toBe(true);
@@ -106,7 +103,7 @@ describe('Error Scenarios and Edge Cases', () => {
 
     it('should handle commands when not connected', async () => {
       const result = await sessionManager.sendCommand(RemoteCommandType.Up);
-      
+
       expect(result.success).toBe(false);
       expect(result.error?.code).toBe(SessionErrorCode.NetworkUnreachable);
     });
@@ -227,7 +224,7 @@ describe('CommandDispatcher Edge Cases', () => {
       keyboard: false,
       apps: false,
     });
-    
+
     expect(result).toBe(false);
   });
 });

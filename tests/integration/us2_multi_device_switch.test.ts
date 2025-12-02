@@ -2,12 +2,7 @@
  * Integration tests for US2: Multi-device switching
  * T030: Validates add devices → switch target → send commands flow
  */
-import {
-  ConnectionStatus,
-  RemoteCommandType,
-  TVDevice,
-  TVPlatform,
-} from '@remote/domain/models';
+import { ConnectionStatus, RemoteCommandType, TVDevice, TVPlatform } from '@remote/domain/models';
 import { DeviceStore } from '@remote/services/device-store';
 import { MockPlatformAdapter, MockTVSession } from '@remote/mocks/mock-adapter';
 
@@ -18,7 +13,11 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
 }));
 
 describe('US2: Multi-device Switch Integration', () => {
-  const createDevice = (id: string, name: string, platform: TVPlatform = TVPlatform.Roku): TVDevice => ({
+  const createDevice = (
+    id: string,
+    name: string,
+    platform: TVPlatform = TVPlatform.Roku
+  ): TVDevice => ({
     id,
     name,
     platform,
@@ -218,9 +217,9 @@ describe('US2: Multi-device Switch Integration', () => {
       expect(await deviceStore.canAddDevice()).toBe(false);
 
       // Try to add 11th device
-      await expect(
-        deviceStore.saveDevice(createDevice('11', 'TV 11'))
-      ).rejects.toThrow('Maximum device limit');
+      await expect(deviceStore.saveDevice(createDevice('11', 'TV 11'))).rejects.toThrow(
+        'Maximum device limit'
+      );
     });
 
     it('should allow adding after removing a device', async () => {

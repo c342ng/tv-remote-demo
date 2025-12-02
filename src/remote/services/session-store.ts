@@ -6,6 +6,11 @@
 import { TVDevice, ConnectionStatus } from '../domain/models';
 import { TVSession } from '../domain/remote-interfaces';
 
+/**
+ * React hook for session state
+ */
+import { useState, useEffect } from 'react';
+
 /** Debug logger */
 const DEBUG_TAG = '[SessionStore]';
 const debug = {
@@ -71,13 +76,13 @@ function notifyListeners(): void {
 export function setSession(device: TVDevice, session: TVSession): void {
   debug.log(`Setting session for device: ${device.name}`);
   debug.log(`  Session ID: ${session.sessionId}`);
-  
+
   state = {
     device,
     session,
     status: ConnectionStatus.Connected,
   };
-  
+
   notifyListeners();
 }
 
@@ -86,7 +91,7 @@ export function setSession(device: TVDevice, session: TVSession): void {
  */
 export async function clearSession(): Promise<void> {
   debug.log('Clearing session...');
-  
+
   if (state.session) {
     try {
       await state.session.disconnect();
@@ -95,13 +100,13 @@ export async function clearSession(): Promise<void> {
       debug.error('Error disconnecting session:', err);
     }
   }
-  
+
   state = {
     device: null,
     session: null,
     status: ConnectionStatus.Disconnected,
   };
-  
+
   notifyListeners();
 }
 
@@ -114,20 +119,15 @@ export function setConnectionStatus(status: ConnectionStatus): void {
   notifyListeners();
 }
 
-/**
- * React hook for session state
- */
-import { useState, useEffect } from 'react';
-
 export function useSession(): SessionState {
   const [sessionState, setSessionState] = useState<SessionState>(getSessionState);
-  
+
   useEffect(() => {
     const unsubscribe = subscribeSession((newState) => {
       setSessionState(newState);
     });
     return unsubscribe;
   }, []);
-  
+
   return sessionState;
 }

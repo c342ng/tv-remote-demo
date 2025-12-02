@@ -4,22 +4,13 @@
  * UI layout is unified across platforms, with capability-driven button visibility/disabled states
  */
 import React, { useCallback, useEffect, useState, useMemo } from 'react';
-import {
-  View,
-  StyleSheet,
-  ScrollView,
-  Alert,
-} from 'react-native';
+import { View, StyleSheet, ScrollView, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { RemoteButton } from '../components/RemoteButton';
 import { ConnectionStatusBar } from '../components/ConnectionStatusBar';
 import { buttonGroups } from '../domain/default-profile';
-import {
-  RemoteCommandType,
-  ConnectionStatus,
-  TVCapabilities,
-} from '../domain/models';
+import { RemoteCommandType, ConnectionStatus, TVCapabilities } from '../domain/models';
 import { useSession, clearSession } from '../services/session-store';
 import { deviceStore } from '../services/device-store';
 
@@ -40,7 +31,7 @@ export const RemoteControlScreen: React.FC = () => {
   // Get session state from global store
   const { device, session, status } = useSession();
   const [savedDeviceCount, setSavedDeviceCount] = useState(0);
-  
+
   debug.log('Rendering RemoteControlScreen');
   debug.log(`  Device: ${device?.name ?? 'none'}`);
   debug.log(`  Session: ${session?.sessionId ?? 'none'}`);
@@ -85,25 +76,28 @@ export const RemoteControlScreen: React.FC = () => {
   }, []);
 
   // Handle command press
-  const handleCommand = useCallback(async (command: RemoteCommandType) => {
-    if (!session) {
-      debug.warn('No session, cannot send command');
-      Alert.alert('未连接', '请先连接电视设备');
-      return;
-    }
-
-    try {
-      debug.log(`Sending command: ${command}`);
-      const result = await session.sendCommand(command);
-      if (!result.success) {
-        debug.warn('Command failed:', result.error);
-      } else {
-        debug.log(`Command ${command} sent successfully`);
+  const handleCommand = useCallback(
+    async (command: RemoteCommandType) => {
+      if (!session) {
+        debug.warn('No session, cannot send command');
+        Alert.alert('未连接', '请先连接电视设备');
+        return;
       }
-    } catch (error) {
-      debug.error('Failed to send command:', error);
-    }
-  }, [session]);
+
+      try {
+        debug.log(`Sending command: ${command}`);
+        const result = await session.sendCommand(command);
+        if (!result.success) {
+          debug.warn('Command failed:', result.error);
+        } else {
+          debug.log(`Command ${command} sent successfully`);
+        }
+      } catch (error) {
+        debug.error('Failed to send command:', error);
+      }
+    },
+    [session]
+  );
 
   return (
     <SafeAreaView style={styles.container}>
@@ -142,7 +136,7 @@ export const RemoteControlScreen: React.FC = () => {
           {/* Up */}
           <View style={styles.dpadRow}>
             <RemoteButton
-              button={buttonGroups.navigation.find(b => b.command === RemoteCommandType.Up)!}
+              button={buttonGroups.navigation.find((b) => b.command === RemoteCommandType.Up)!}
               onPress={handleCommand}
               capabilities={capabilities}
               isConnected={isConnected}
@@ -150,11 +144,11 @@ export const RemoteControlScreen: React.FC = () => {
               shape="circle"
             />
           </View>
-          
+
           {/* Left - Select - Right */}
           <View style={styles.dpadRow}>
             <RemoteButton
-              button={buttonGroups.navigation.find(b => b.command === RemoteCommandType.Left)!}
+              button={buttonGroups.navigation.find((b) => b.command === RemoteCommandType.Left)!}
               onPress={handleCommand}
               capabilities={capabilities}
               isConnected={isConnected}
@@ -162,7 +156,7 @@ export const RemoteControlScreen: React.FC = () => {
               shape="circle"
             />
             <RemoteButton
-              button={buttonGroups.navigation.find(b => b.command === RemoteCommandType.Select)!}
+              button={buttonGroups.navigation.find((b) => b.command === RemoteCommandType.Select)!}
               onPress={handleCommand}
               capabilities={capabilities}
               isConnected={isConnected}
@@ -171,7 +165,7 @@ export const RemoteControlScreen: React.FC = () => {
               style={styles.selectButton}
             />
             <RemoteButton
-              button={buttonGroups.navigation.find(b => b.command === RemoteCommandType.Right)!}
+              button={buttonGroups.navigation.find((b) => b.command === RemoteCommandType.Right)!}
               onPress={handleCommand}
               capabilities={capabilities}
               isConnected={isConnected}
@@ -179,11 +173,11 @@ export const RemoteControlScreen: React.FC = () => {
               shape="circle"
             />
           </View>
-          
+
           {/* Down */}
           <View style={styles.dpadRow}>
             <RemoteButton
-              button={buttonGroups.navigation.find(b => b.command === RemoteCommandType.Down)!}
+              button={buttonGroups.navigation.find((b) => b.command === RemoteCommandType.Down)!}
               onPress={handleCommand}
               capabilities={capabilities}
               isConnected={isConnected}

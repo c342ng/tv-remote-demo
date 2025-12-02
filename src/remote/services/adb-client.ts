@@ -143,18 +143,12 @@ function getTcpModule(): any | null {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const TcpSocket = require('react-native-tcp-socket');
     // The module exports: { connect, createConnection, createServer, Socket, ... }
-    if (
-      TcpSocket &&
-      (TcpSocket.createConnection || TcpSocket.default?.createConnection)
-    ) {
+    if (TcpSocket && (TcpSocket.createConnection || TcpSocket.default?.createConnection)) {
       tcpModuleCache = TcpSocket.default || TcpSocket;
       debug.log('TCP socket module loaded successfully');
       return tcpModuleCache;
     }
-    debug.warn(
-      'TCP socket module has unexpected structure:',
-      Object.keys(TcpSocket || {})
-    );
+    debug.warn('TCP socket module has unexpected structure:', Object.keys(TcpSocket || {}));
     return null;
   } catch (err) {
     debug.warn('Failed to load react-native-tcp-socket:', err);
@@ -215,9 +209,7 @@ function isFireTvDevice(info: Partial<AdbDeviceInfo>): boolean {
   const product = (info.product || '').toLowerCase();
 
   // Check manufacturer
-  if (
-    FIRE_TV_IDENTIFIERS.manufacturers.some((m) => manufacturer.includes(m))
-  ) {
+  if (FIRE_TV_IDENTIFIERS.manufacturers.some((m) => manufacturer.includes(m))) {
     return true;
   }
 
@@ -253,22 +245,13 @@ function parseAdbDeviceString(deviceString: string): Partial<AdbDeviceInfo> {
     const keyLower = key.toLowerCase().trim();
     const valueTrimmed = value.trim();
 
-    if (
-      keyLower.includes('manufacturer') ||
-      keyLower === 'ro.product.manufacturer'
-    ) {
+    if (keyLower.includes('manufacturer') || keyLower === 'ro.product.manufacturer') {
       info.manufacturer = valueTrimmed;
     } else if (keyLower.includes('model') || keyLower === 'ro.product.model') {
       info.model = valueTrimmed;
-    } else if (
-      keyLower.includes('product') ||
-      keyLower === 'ro.product.name'
-    ) {
+    } else if (keyLower.includes('product') || keyLower === 'ro.product.name') {
       info.product = valueTrimmed;
-    } else if (
-      keyLower.includes('device') ||
-      keyLower === 'ro.product.device'
-    ) {
+    } else if (keyLower.includes('device') || keyLower === 'ro.product.device') {
       // Also check device name for Fire TV indicators
       if (!info.product) {
         info.product = valueTrimmed;
@@ -423,10 +406,7 @@ export async function probeAdbDevice(
           debug.log(`ADB response command: 0x${command.toString(16)}`);
 
           // Check for CNXN response (device info) or AUTH request
-          if (
-            command === ADB_PROTOCOL.CMD.CNXN &&
-            dataBuffer.length >= 24 + dataLength
-          ) {
+          if (command === ADB_PROTOCOL.CMD.CNXN && dataBuffer.length >= 24 + dataLength) {
             // Parse device string from CNXN response
             const deviceBytes = dataBuffer.slice(24, 24 + dataLength);
             const deviceString = bytesToString(deviceBytes);
@@ -635,9 +615,7 @@ export async function scanSubnetForFireTv(
         debug.log(`✓ Found Fire TV at ${ip}`);
         discovered.push({
           id: `firetv-${ip}`,
-          name: deviceInfo.model
-            ? `Fire TV (${deviceInfo.model})`
-            : `Fire TV (${ip})`,
+          name: deviceInfo.model ? `Fire TV (${deviceInfo.model})` : `Fire TV (${ip})`,
           ipAddress: ip,
           port: ADB_PORT,
           platform: TVPlatform.FireTV,
@@ -653,9 +631,7 @@ export async function scanSubnetForFireTv(
     }
   }
 
-  debug.log(
-    `Subnet scan complete. Found ${discovered.length} Fire TV device(s)`
-  );
+  debug.log(`Subnet scan complete. Found ${discovered.length} Fire TV device(s)`);
   return discovered;
 }
 

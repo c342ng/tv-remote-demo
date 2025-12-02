@@ -57,17 +57,17 @@ export function isButtonDisabled(
   if (!isConnected) {
     return true;
   }
-  
+
   // If no capabilities available, assume enabled
   if (!capabilities) {
     return false;
   }
-  
+
   // Check if button requires a capability that's missing
   if (button.disableWhenUnsupported && button.requiredCapability) {
     return capabilities[button.requiredCapability] !== true;
   }
-  
+
   return false;
 }
 
@@ -77,35 +77,53 @@ const navButtons: RemoteButtonWithRules[] = [
   { id: 'down', label: '▼', command: RemoteCommandType.Down, order: 3, visibilityRule: 'always' },
   { id: 'left', label: '◀', command: RemoteCommandType.Left, order: 2, visibilityRule: 'always' },
   { id: 'right', label: '▶', command: RemoteCommandType.Right, order: 4, visibilityRule: 'always' },
-  { id: 'select', label: 'OK', command: RemoteCommandType.Select, order: 0, visibilityRule: 'always' },
+  {
+    id: 'select',
+    label: 'OK',
+    command: RemoteCommandType.Select,
+    order: 0,
+    visibilityRule: 'always',
+  },
 ];
 
 // Playback control buttons - always visible but may be disabled
 const playbackButtons: RemoteButtonWithRules[] = [
   { id: 'play', label: '▶', command: RemoteCommandType.Play, order: 0, visibilityRule: 'always' },
   { id: 'pause', label: '⏸', command: RemoteCommandType.Pause, order: 1, visibilityRule: 'always' },
-  { id: 'rewind', label: '⏪', command: RemoteCommandType.Rewind, order: 2, visibilityRule: 'always' },
-  { id: 'forward', label: '⏩', command: RemoteCommandType.FastForward, order: 3, visibilityRule: 'always' },
+  {
+    id: 'rewind',
+    label: '⏪',
+    command: RemoteCommandType.Rewind,
+    order: 2,
+    visibilityRule: 'always',
+  },
+  {
+    id: 'forward',
+    label: '⏩',
+    command: RemoteCommandType.FastForward,
+    order: 3,
+    visibilityRule: 'always',
+  },
 ];
 
 // System control buttons - power requires capability
 const systemButtons: RemoteButtonWithRules[] = [
-  { 
-    id: 'power', 
-    label: '⏻', 
-    command: RemoteCommandType.Power, 
-    order: 0, 
+  {
+    id: 'power',
+    label: '⏻',
+    command: RemoteCommandType.Power,
+    order: 0,
     visibilityRule: 'capability',
     requiredCapability: 'powerControl',
     disableWhenUnsupported: true,
   },
   { id: 'home', label: '⌂', command: RemoteCommandType.Home, order: 1, visibilityRule: 'always' },
   { id: 'back', label: '←', command: RemoteCommandType.Back, order: 2, visibilityRule: 'always' },
-  { 
-    id: 'mute', 
-    label: '🔇', 
-    command: RemoteCommandType.Mute, 
-    order: 3, 
+  {
+    id: 'mute',
+    label: '🔇',
+    command: RemoteCommandType.Mute,
+    order: 3,
     visibilityRule: 'capability',
     requiredCapability: 'volumeControl',
     disableWhenUnsupported: true,
@@ -114,20 +132,20 @@ const systemButtons: RemoteButtonWithRules[] = [
 
 // Volume control buttons - visibility depends on capability
 const volumeButtons: RemoteButtonWithRules[] = [
-  { 
-    id: 'volume-up', 
-    label: '🔊+', 
-    command: RemoteCommandType.VolumeUp, 
-    order: 0, 
+  {
+    id: 'volume-up',
+    label: '🔊+',
+    command: RemoteCommandType.VolumeUp,
+    order: 0,
     visibilityRule: 'capability',
     requiredCapability: 'volumeControl',
     disableWhenUnsupported: true,
   },
-  { 
-    id: 'volume-down', 
-    label: '🔉−', 
-    command: RemoteCommandType.VolumeDown, 
-    order: 1, 
+  {
+    id: 'volume-down',
+    label: '🔉−',
+    command: RemoteCommandType.VolumeDown,
+    order: 1,
     visibilityRule: 'capability',
     requiredCapability: 'volumeControl',
     disableWhenUnsupported: true,
@@ -136,20 +154,20 @@ const volumeButtons: RemoteButtonWithRules[] = [
 
 // Channel control buttons - visibility depends on capability
 const channelButtons: RemoteButtonWithRules[] = [
-  { 
-    id: 'channel-up', 
-    label: 'CH+', 
-    command: RemoteCommandType.ChannelUp, 
-    order: 0, 
+  {
+    id: 'channel-up',
+    label: 'CH+',
+    command: RemoteCommandType.ChannelUp,
+    order: 0,
     visibilityRule: 'capability',
     requiredCapability: 'channelControl',
     disableWhenUnsupported: true,
   },
-  { 
-    id: 'channel-down', 
-    label: 'CH−', 
-    command: RemoteCommandType.ChannelDown, 
-    order: 1, 
+  {
+    id: 'channel-down',
+    label: 'CH−',
+    command: RemoteCommandType.ChannelDown,
+    order: 1,
     visibilityRule: 'capability',
     requiredCapability: 'channelControl',
     disableWhenUnsupported: true,
@@ -160,7 +178,13 @@ const channelButtons: RemoteButtonWithRules[] = [
 const menuButtons: RemoteButtonWithRules[] = [
   { id: 'menu', label: '☰', command: RemoteCommandType.Menu, order: 0, visibilityRule: 'always' },
   { id: 'info', label: 'ⓘ', command: RemoteCommandType.Info, order: 1, visibilityRule: 'always' },
-  { id: 'settings', label: '⚙', command: RemoteCommandType.Settings, order: 2, visibilityRule: 'always' },
+  {
+    id: 'settings',
+    label: '⚙',
+    command: RemoteCommandType.Settings,
+    order: 2,
+    visibilityRule: 'always',
+  },
 ];
 
 // Number pad buttons - always visible
@@ -232,7 +256,7 @@ export function getVisibleButtons(
   buttons: RemoteButtonWithRules[],
   capabilities: TVCapabilities | null
 ): RemoteButtonWithRules[] {
-  return buttons.filter(button => isButtonVisible(button, capabilities));
+  return buttons.filter((button) => isButtonVisible(button, capabilities));
 }
 
 export default defaultRemoteProfile;

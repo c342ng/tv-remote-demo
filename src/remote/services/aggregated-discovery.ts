@@ -58,7 +58,7 @@ export interface AggregatedDiscoveryResult {
   /** Discovery duration in milliseconds */
   durationMs: number;
   /** Any errors that occurred during discovery */
-  errors: Array<{ platform: TVPlatform; error: Error }>;
+  errors: { platform: TVPlatform; error: Error }[];
 }
 
 /**
@@ -108,7 +108,7 @@ export async function discoverAllDevices(
   const {
     timeoutMs = DEFAULT_TIMEOUT_MS,
     platforms = getSupportedPlatforms(),
-    stopOnFirstResult = false,
+    // Note: stopOnFirstResult is available in options but not yet implemented
     onDeviceFound,
   } = options;
 
@@ -119,7 +119,7 @@ export async function discoverAllDevices(
   const startTime = Date.now();
   const allDevices: DiscoveredDevice[] = [];
   const byPlatform = new Map<TVPlatform, DiscoveredDevice[]>();
-  const errors: Array<{ platform: TVPlatform; error: Error }> = [];
+  const errors: { platform: TVPlatform; error: Error }[] = [];
   const seenDeviceIds = new Set<string>();
 
   // Initialize platform groups
@@ -135,11 +135,11 @@ export async function discoverAllDevices(
     if (!seenDeviceIds.has(deviceKey)) {
       seenDeviceIds.add(deviceKey);
       allDevices.push(device);
-      
+
       const platformDevices = byPlatform.get(device.platform) || [];
       platformDevices.push(device);
       byPlatform.set(device.platform, platformDevices);
-      
+
       // Notify caller immediately when device is found
       if (onDeviceFound) {
         try {
@@ -148,7 +148,7 @@ export async function discoverAllDevices(
           debug.warn('onDeviceFound callback error:', err);
         }
       }
-      
+
       return true; // New device added
     } else {
       debug.log(`Duplicate device skipped: ${device.name} (${deviceKey})`);
@@ -171,12 +171,12 @@ export async function discoverAllDevices(
       const devices = await adapter.discover(timeoutMs);
 
       debug.log(`${platform} discovery found ${devices.length} device(s)`);
-      
+
       // Process devices as they come in from each platform
       for (const device of devices) {
         processDevice(device);
       }
-      
+
       return devices;
     } catch (err) {
       debug.error(`${platform} discovery failed:`, err);
@@ -194,7 +194,7 @@ export async function discoverAllDevices(
     if (result.status === 'rejected') {
       const platform = platforms[i];
       debug.error(`${platform} discovery rejected:`, result.reason);
-      if (!errors.some(e => e.platform === platform)) {
+      if (!errors.some((e) => e.platform === platform)) {
         errors.push({ platform, error: result.reason });
       }
     }
@@ -253,9 +253,7 @@ export async function discoverPlatformDevices(
  * @param timeoutMs - Maximum time to wait (default: 2000ms)
  * @returns Promise resolving to discovered devices
  */
-export async function quickDiscovery(
-  timeoutMs: number = 2000
-): Promise<DiscoveredDevice[]> {
+export async function quickDiscovery(timeoutMs: number = 2000): Promise<DiscoveredDevice[]> {
   const result = await discoverAllDevices({
     timeoutMs,
     stopOnFirstResult: true,
@@ -273,7 +271,7 @@ export async function quickDiscovery(
 export class AggregatedDiscoveryService {
   private _isDiscovering = false;
   private _lastDiscoveryResult: AggregatedDiscoveryResult | null = null;
-  private _discoveryListeners: Array<(devices: DiscoveredDevice[]) => void> = [];
+  private _discoveryListeners: ((devices: DiscoveredDevice[]) => void)[] = [];
 
   /**
    * Whether discovery is currently in progress
@@ -300,12 +298,14 @@ export class AggregatedDiscoveryService {
   ): Promise<AggregatedDiscoveryResult> {
     if (this._isDiscovering) {
       debug.warn('Discovery already in progress');
-      return this._lastDiscoveryResult || {
-        devices: [],
-        byPlatform: new Map(),
-        durationMs: 0,
-        errors: [],
-      };
+      return (
+        this._lastDiscoveryResult || {
+          devices: [],
+          byPlatform: new Map(),
+          durationMs: 0,
+          errors: [],
+        }
+      );
     }
 
     this._isDiscovering = true;

@@ -36,11 +36,6 @@ export const DeviceManagementScreen: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isSwitching, setIsSwitching] = useState(false);
 
-  // Load devices on mount
-  useEffect(() => {
-    loadDevices();
-  }, []);
-
   // Load devices from store
   const loadDevices = useCallback(async () => {
     try {
@@ -48,14 +43,14 @@ export const DeviceManagementScreen: React.FC = () => {
       await deviceStore.load();
       const allDevices = await deviceStore.getAllDevices();
       const activeId = await deviceStore.getActiveDeviceId();
-      
+
       // Sort: favorites first, then by last connected
       const sorted = [...allDevices].sort((a, b) => {
         if (a.isFavorite && !b.isFavorite) return -1;
         if (!a.isFavorite && b.isFavorite) return 1;
         return new Date(b.lastConnected).getTime() - new Date(a.lastConnected).getTime();
       });
-      
+
       setDevices(sorted);
       setActiveDeviceId(activeId);
       debug.log(`Loaded ${sorted.length} devices, active: ${activeId}`);
@@ -67,91 +62,108 @@ export const DeviceManagementScreen: React.FC = () => {
     }
   }, []);
 
+  // Load devices on mount
+  useEffect(() => {
+    loadDevices();
+  }, [loadDevices]);
+
   // Handle device selection - switch to device
-  const handleSelectDevice = useCallback(async (device: SavedDevice) => {
-    if (device.id === activeDeviceId && sessionManager.isConnectedTo(device.id)) {
-      // Already connected to this device, go to remote control
-      debug.log('Already connected to device, navigating to control');
-      router.push('/remote/control');
-      return;
-    }
-
-    try {
-      setIsSwitching(true);
-      debug.log(`Switching to device: ${device.name}`);
-
-      // Convert SavedDevice to TVDevice
-      const tvDevice: TVDevice = {
-        id: device.id,
-        name: device.customName || device.name,
-        platform: device.platform,
-        ipAddress: device.ipAddress,
-        port: device.port,
-        metadata: device.metadata,
-      };
-
-      // Switch session to new device
-      const success = await sessionManager.switchToDevice(tvDevice);
-      
-      if (success) {
-        // Update active device in store
-        await deviceStore.setActiveDevice(device.id);
-        setActiveDeviceId(device.id);
-        debug.log('Successfully switched to device');
-        
-        // Navigate to remote control
+  const handleSelectDevice = useCallback(
+    async (device: SavedDevice) => {
+      if (device.id === activeDeviceId && sessionManager.isConnectedTo(device.id)) {
+        // Already connected to this device, go to remote control
+        debug.log('Already connected to device, navigating to control');
         router.push('/remote/control');
-      } else {
-        Alert.alert('连接失败', '无法连接到所选设备，请稍后重试');
+        return;
       }
-    } catch (error) {
-      debug.error('Failed to switch device:', error);
-      Alert.alert('切换失败', '无法切换到所选设备');
-    } finally {
-      setIsSwitching(false);
-    }
-  }, [activeDeviceId]);
+
+      try {
+        setIsSwitching(true);
+        debug.log(`Switching to device: ${device.name}`);
+
+        // Convert SavedDevice to TVDevice
+        const tvDevice: TVDevice = {
+          id: device.id,
+          name: device.customName || device.name,
+          platform: device.platform,
+          ipAddress: device.ipAddress,
+          port: device.port,
+          metadata: device.metadata,
+        };
+
+        // Switch session to new device
+        const success = await sessionManager.switchToDevice(tvDevice);
+
+        if (success) {
+          // Update active device in store
+          await deviceStore.setActiveDevice(device.id);
+          setActiveDeviceId(device.id);
+          debug.log('Successfully switched to device');
+
+          // Navigate to remote control
+          router.push('/remote/control');
+        } else {
+          Alert.alert('连接失败', '无法连接到所选设备，请稍后重试');
+        }
+      } catch (error) {
+        debug.error('Failed to switch device:', error);
+        Alert.alert('切换失败', '无法切换到所选设备');
+      } finally {
+        setIsSwitching(false);
+      }
+    },
+    [activeDeviceId]
+  );
 
   // Handle device rename
-  const handleRenameDevice = useCallback(async (deviceId: string, newName: string) => {
-    try {
-      debug.log(`Renaming device ${deviceId} to "${newName}"`);
-      await deviceStore.renameDevice(deviceId, newName);
-      await loadDevices();
-    } catch (error) {
-      debug.error('Failed to rename device:', error);
-      Alert.alert('重命名失败', '无法重命名设备');
-    }
-  }, [loadDevices]);
+  const handleRenameDevice = useCallback(
+    async (deviceId: string, newName: string) => {
+      try {
+        debug.log(`Renaming device ${deviceId} to "${newName}"`);
+        await deviceStore.renameDevice(deviceId, newName);
+        await loadDevices();
+      } catch (error) {
+        debug.error('Failed to rename device:', error);
+        Alert.alert('重命名失败', '无法重命名设备');
+      }
+    },
+    [loadDevices]
+  );
 
   // Handle device delete
-  const handleDeleteDevice = useCallback(async (deviceId: string) => {
-    try {
-      debug.log(`Deleting device ${deviceId}`);
-      
-      // If deleting active device, disconnect first
-      if (deviceId === activeDeviceId) {
-        await sessionManager.disconnect();
+  const handleDeleteDevice = useCallback(
+    async (deviceId: string) => {
+      try {
+        debug.log(`Deleting device ${deviceId}`);
+
+        // If deleting active device, disconnect first
+        if (deviceId === activeDeviceId) {
+          await sessionManager.disconnect();
+        }
+
+        await deviceStore.removeDevice(deviceId);
+        await loadDevices();
+      } catch (error) {
+        debug.error('Failed to delete device:', error);
+        Alert.alert('删除失败', '无法删除设备');
       }
-      
-      await deviceStore.removeDevice(deviceId);
-      await loadDevices();
-    } catch (error) {
-      debug.error('Failed to delete device:', error);
-      Alert.alert('删除失败', '无法删除设备');
-    }
-  }, [activeDeviceId, loadDevices]);
+    },
+    [activeDeviceId, loadDevices]
+  );
 
   // Handle favorite toggle
-  const handleToggleFavorite = useCallback(async (deviceId: string) => {
-    try {
-      debug.log(`Toggling favorite for device ${deviceId}`);
-      await deviceStore.toggleFavorite(deviceId);
-      await loadDevices();
-    } catch (error) {
-      debug.error('Failed to toggle favorite:', error);
-    }
-  }, [loadDevices]);
+  const handleToggleFavorite = useCallback(
+    async (deviceId: string) => {
+      try {
+        debug.log(`Toggling favorite for device ${deviceId}`);
+        await deviceStore.toggleFavorite(deviceId);
+        await loadDevices();
+      } catch (error) {
+        debug.error('Failed to toggle favorite:', error);
+      }
+    },
+    [loadDevices]
+  );
 
   // Handle add device button - navigate to discovery
   const handleAddDevice = useCallback(() => {
@@ -164,17 +176,26 @@ export const DeviceManagementScreen: React.FC = () => {
   }, []);
 
   // Render device item
-  const renderDevice = useCallback(({ item, index }: { item: SavedDevice; index: number }) => (
-    <DeviceManagementItem
-      device={item}
-      isActive={item.id === activeDeviceId}
-      onSelect={handleSelectDevice}
-      onRename={handleRenameDevice}
-      onDelete={handleDeleteDevice}
-      onToggleFavorite={handleToggleFavorite}
-      testID={`device-item-${index}`}
-    />
-  ), [activeDeviceId, handleSelectDevice, handleRenameDevice, handleDeleteDevice, handleToggleFavorite]);
+  const renderDevice = useCallback(
+    ({ item, index }: { item: SavedDevice; index: number }) => (
+      <DeviceManagementItem
+        device={item}
+        isActive={item.id === activeDeviceId}
+        onSelect={handleSelectDevice}
+        onRename={handleRenameDevice}
+        onDelete={handleDeleteDevice}
+        onToggleFavorite={handleToggleFavorite}
+        testID={`device-item-${index}`}
+      />
+    ),
+    [
+      activeDeviceId,
+      handleSelectDevice,
+      handleRenameDevice,
+      handleDeleteDevice,
+      handleToggleFavorite,
+    ]
+  );
 
   // Render empty state
   const renderEmptyState = () => (

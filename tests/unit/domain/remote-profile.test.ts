@@ -99,7 +99,7 @@ describe('RemoteProfile and TVCapabilities Interaction', () => {
   describe('Limited Capabilities Device (Streaming Box)', () => {
     const limitedCapabilities: TVCapabilities = {
       powerControl: false,
-      volumeControl: false,  // No volume control (TV handles it)
+      volumeControl: false, // No volume control (TV handles it)
       channelControl: false,
       voiceInput: false,
       keyboard: true,
@@ -139,7 +139,7 @@ describe('RemoteProfile and TVCapabilities Interaction', () => {
     const rokuCapabilities: TVCapabilities = {
       powerControl: true,
       volumeControl: true,
-      channelControl: false,  // Roku doesn't have channel control
+      channelControl: false, // Roku doesn't have channel control
       voiceInput: false,
       keyboard: true,
       apps: true,
@@ -147,17 +147,17 @@ describe('RemoteProfile and TVCapabilities Interaction', () => {
 
     it('should support Roku standard commands', () => {
       const supported = getSupportedCommands(rokuCapabilities);
-      
+
       // Navigation
       expect(supported).toContain(RemoteCommandType.Up);
       expect(supported).toContain(RemoteCommandType.Select);
       expect(supported).toContain(RemoteCommandType.Home);
-      
+
       // Power and Volume
       expect(supported).toContain(RemoteCommandType.Power);
       expect(supported).toContain(RemoteCommandType.VolumeUp);
       expect(supported).toContain(RemoteCommandType.Mute);
-      
+
       // No channel control
       expect(supported).not.toContain(RemoteCommandType.ChannelUp);
       expect(supported).not.toContain(RemoteCommandType.ChannelDown);
@@ -168,7 +168,7 @@ describe('RemoteProfile and TVCapabilities Interaction', () => {
     const androidTvCapabilities: TVCapabilities = {
       powerControl: true,
       volumeControl: true,
-      channelControl: true,  // Live channels support
+      channelControl: true, // Live channels support
       voiceInput: true,
       keyboard: true,
       apps: true,
@@ -176,7 +176,7 @@ describe('RemoteProfile and TVCapabilities Interaction', () => {
 
     it('should support full command set', () => {
       const supported = getSupportedCommands(androidTvCapabilities);
-      
+
       expect(supported).toContain(RemoteCommandType.Power);
       expect(supported).toContain(RemoteCommandType.VolumeUp);
       expect(supported).toContain(RemoteCommandType.ChannelUp);

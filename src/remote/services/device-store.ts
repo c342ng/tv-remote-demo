@@ -136,8 +136,7 @@ class DeviceStore implements DeviceManager {
 
     // Clear active device if removed
     if (this.state.activeDeviceId === deviceId) {
-      this.state.activeDeviceId =
-        this.state.devices.length > 0 ? this.state.devices[0].id : null;
+      this.state.activeDeviceId = this.state.devices.length > 0 ? this.state.devices[0].id : null;
     }
 
     await this.persist();

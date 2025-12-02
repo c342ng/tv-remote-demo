@@ -1,7 +1,7 @@
 /**
  * Logger Service
  * Simple logging interface for TV Remote services
- * 
+ *
  * SECURITY: This logger sanitizes sensitive data before output.
  * The following are considered sensitive and will be masked or removed:
  * - Full IP addresses (last octet masked)
@@ -67,8 +67,19 @@ interface ILogger {
   info(type: LogEventType, message: string, ...args: unknown[]): void;
   warn(type: LogEventType, message: string, ...args: unknown[]): void;
   error(type: LogEventType, message: string, ...args: unknown[]): void;
-  connection(level: LogLevel, message: string, deviceId?: string | null, sessionId?: string | null): void;
-  command(level: LogLevel, message: string, deviceId?: string | null, sessionId?: string | null, payload?: Record<string, unknown>): void;
+  connection(
+    level: LogLevel,
+    message: string,
+    deviceId?: string | null,
+    sessionId?: string | null
+  ): void;
+  command(
+    level: LogLevel,
+    message: string,
+    deviceId?: string | null,
+    sessionId?: string | null,
+    payload?: Record<string, unknown>
+  ): void;
   discovery(level: LogLevel, message: string, payload?: Record<string, unknown>): void;
   system(level: LogLevel, message: string, payload?: Record<string, unknown>): void;
 }
@@ -77,10 +88,14 @@ interface ILogger {
  * Format log message with timestamp and type
  * Sanitizes payload to remove sensitive data
  */
-function formatMessage(type: LogEventType, message: string, extra?: Record<string, unknown>): string {
+function formatMessage(
+  type: LogEventType,
+  message: string,
+  extra?: Record<string, unknown>
+): string {
   const time = new Date().toLocaleTimeString();
   // Sanitize the message itself
-  const sanitizedMessage = typeof message === 'string' ? sanitize(message) as string : message;
+  const sanitizedMessage = typeof message === 'string' ? (sanitize(message) as string) : message;
   let formatted = `[${time}] [${type.toUpperCase()}] ${sanitizedMessage}`;
   if (extra && Object.keys(extra).length > 0) {
     // Sanitize the payload

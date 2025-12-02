@@ -1,20 +1,31 @@
 /**
  * Samsung Tizen TV Protocol Adapter
- * 
+ *
  * Tizen Smart TVs (2016+) use a WebSocket-based protocol
  * The connection uses wss://TV_IP:8002/api/v2/channels/samsung.remote.control
- * 
+ *
  * Protocol Details:
  * - Port: 8002 (secure WebSocket)
  * - Path: /api/v2/channels/samsung.remote.control
  * - Token-based authentication for pairing
  * - Commands sent as JSON with specific event structure
- * 
+ *
  * TODO: Full implementation requires Tizen SDK and real device testing
  */
 
-import { ConnectionStatus, TVDevice, TVPlatform, RemoteCommandType, SessionErrorCode } from '../domain/models';
-import { CommandResult, DiscoveredDevice, PlatformAdapter, TVSession } from '../domain/remote-interfaces';
+import {
+  ConnectionStatus,
+  TVDevice,
+  TVPlatform,
+  RemoteCommandType,
+  SessionErrorCode,
+} from '../domain/models';
+import {
+  CommandResult,
+  DiscoveredDevice,
+  PlatformAdapter,
+  TVSession,
+} from '../domain/remote-interfaces';
 
 /** Tizen remote control key codes */
 const TIZEN_KEY_CODES: Partial<Record<RemoteCommandType, string>> = {
@@ -40,6 +51,7 @@ const TIZEN_KEY_CODES: Partial<Record<RemoteCommandType, string>> = {
 };
 
 /** Tizen WebSocket message structure */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 interface TizenMessage {
   method: 'ms.channel.connect' | 'ms.remote.control';
   params: {
@@ -55,6 +67,7 @@ interface TizenMessage {
 /**
  * Tizen TV Session implementation
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 class TizenTVSession implements TVSession {
   readonly sessionId: string;
   readonly device: TVDevice;
@@ -119,7 +132,7 @@ class TizenTVSession implements TVSession {
 
 /**
  * Tizen Platform Adapter
- * 
+ *
  * Discovery uses SSDP with Samsung-specific service types:
  * - urn:samsung.com:device:RemoteControlReceiver:1
  * - urn:dial-multiscreen-org:device:dial:1
@@ -134,11 +147,11 @@ export class TizenAdapter implements PlatformAdapter {
    */
   async discover(timeoutMs?: number): Promise<DiscoveredDevice[]> {
     this.status = ConnectionStatus.Discovering;
-    
+
     // TODO: Implement SSDP discovery for Tizen
     // Search for: urn:samsung.com:device:RemoteControlReceiver:1
     console.log(`[Tizen] Discovery not implemented (timeout: ${timeoutMs ?? 5000}ms)`);
-    
+
     this.status = ConnectionStatus.Idle;
     return [];
   }
@@ -149,16 +162,16 @@ export class TizenAdapter implements PlatformAdapter {
    */
   async connect(device: TVDevice): Promise<TVSession | null> {
     this.status = ConnectionStatus.Connecting;
-    
+
     // TODO: Implement secure WebSocket connection
     // 1. Connect to wss://device.ipAddress:8002/api/v2/channels/samsung.remote.control
     // 2. Send ms.channel.connect with app name (base64 encoded)
     // 3. Handle pairing prompt on TV if needed (user must allow)
     // 4. Receive token for future connections
     // 5. Store token for persistent connections
-    
+
     console.log(`[Tizen] Connection to ${device.name} not implemented`);
-    
+
     this.status = ConnectionStatus.Unavailable;
     return null;
   }

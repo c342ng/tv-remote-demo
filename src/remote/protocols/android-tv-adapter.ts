@@ -54,35 +54,35 @@ const ADB_CONNECT_TIMEOUT_MS = 5000;
  * Reference: https://developer.android.com/reference/android/view/KeyEvent
  */
 const ANDROID_KEYCODE_MAP: Record<RemoteCommandType, number> = {
-  [RemoteCommandType.Up]: 19,           // KEYCODE_DPAD_UP
-  [RemoteCommandType.Down]: 20,         // KEYCODE_DPAD_DOWN
-  [RemoteCommandType.Left]: 21,         // KEYCODE_DPAD_LEFT
-  [RemoteCommandType.Right]: 22,        // KEYCODE_DPAD_RIGHT
-  [RemoteCommandType.Select]: 23,       // KEYCODE_DPAD_CENTER
-  [RemoteCommandType.Back]: 4,          // KEYCODE_BACK
-  [RemoteCommandType.Home]: 3,          // KEYCODE_HOME
-  [RemoteCommandType.VolumeUp]: 24,     // KEYCODE_VOLUME_UP
-  [RemoteCommandType.VolumeDown]: 25,   // KEYCODE_VOLUME_DOWN
-  [RemoteCommandType.Mute]: 164,        // KEYCODE_VOLUME_MUTE
-  [RemoteCommandType.Power]: 26,        // KEYCODE_POWER
-  [RemoteCommandType.Play]: 126,        // KEYCODE_MEDIA_PLAY
-  [RemoteCommandType.Pause]: 127,       // KEYCODE_MEDIA_PAUSE
-  [RemoteCommandType.Rewind]: 89,       // KEYCODE_MEDIA_REWIND
-  [RemoteCommandType.FastForward]: 90,  // KEYCODE_MEDIA_FAST_FORWARD
-  [RemoteCommandType.Num0]: 7,          // KEYCODE_0
-  [RemoteCommandType.Num1]: 8,          // KEYCODE_1
-  [RemoteCommandType.Num2]: 9,          // KEYCODE_2
-  [RemoteCommandType.Num3]: 10,         // KEYCODE_3
-  [RemoteCommandType.Num4]: 11,         // KEYCODE_4
-  [RemoteCommandType.Num5]: 12,         // KEYCODE_5
-  [RemoteCommandType.Num6]: 13,         // KEYCODE_6
-  [RemoteCommandType.Num7]: 14,         // KEYCODE_7
-  [RemoteCommandType.Num8]: 15,         // KEYCODE_8
-  [RemoteCommandType.Num9]: 16,         // KEYCODE_9
-  [RemoteCommandType.Menu]: 82,         // KEYCODE_MENU
-  [RemoteCommandType.Info]: 165,        // KEYCODE_INFO
-  [RemoteCommandType.Settings]: 176,    // KEYCODE_SETTINGS
-  [RemoteCommandType.ChannelUp]: 166,   // KEYCODE_CHANNEL_UP
+  [RemoteCommandType.Up]: 19, // KEYCODE_DPAD_UP
+  [RemoteCommandType.Down]: 20, // KEYCODE_DPAD_DOWN
+  [RemoteCommandType.Left]: 21, // KEYCODE_DPAD_LEFT
+  [RemoteCommandType.Right]: 22, // KEYCODE_DPAD_RIGHT
+  [RemoteCommandType.Select]: 23, // KEYCODE_DPAD_CENTER
+  [RemoteCommandType.Back]: 4, // KEYCODE_BACK
+  [RemoteCommandType.Home]: 3, // KEYCODE_HOME
+  [RemoteCommandType.VolumeUp]: 24, // KEYCODE_VOLUME_UP
+  [RemoteCommandType.VolumeDown]: 25, // KEYCODE_VOLUME_DOWN
+  [RemoteCommandType.Mute]: 164, // KEYCODE_VOLUME_MUTE
+  [RemoteCommandType.Power]: 26, // KEYCODE_POWER
+  [RemoteCommandType.Play]: 126, // KEYCODE_MEDIA_PLAY
+  [RemoteCommandType.Pause]: 127, // KEYCODE_MEDIA_PAUSE
+  [RemoteCommandType.Rewind]: 89, // KEYCODE_MEDIA_REWIND
+  [RemoteCommandType.FastForward]: 90, // KEYCODE_MEDIA_FAST_FORWARD
+  [RemoteCommandType.Num0]: 7, // KEYCODE_0
+  [RemoteCommandType.Num1]: 8, // KEYCODE_1
+  [RemoteCommandType.Num2]: 9, // KEYCODE_2
+  [RemoteCommandType.Num3]: 10, // KEYCODE_3
+  [RemoteCommandType.Num4]: 11, // KEYCODE_4
+  [RemoteCommandType.Num5]: 12, // KEYCODE_5
+  [RemoteCommandType.Num6]: 13, // KEYCODE_6
+  [RemoteCommandType.Num7]: 14, // KEYCODE_7
+  [RemoteCommandType.Num8]: 15, // KEYCODE_8
+  [RemoteCommandType.Num9]: 16, // KEYCODE_9
+  [RemoteCommandType.Menu]: 82, // KEYCODE_MENU
+  [RemoteCommandType.Info]: 165, // KEYCODE_INFO
+  [RemoteCommandType.Settings]: 176, // KEYCODE_SETTINGS
+  [RemoteCommandType.ChannelUp]: 166, // KEYCODE_CHANNEL_UP
   [RemoteCommandType.ChannelDown]: 167, // KEYCODE_CHANNEL_DOWN
 };
 
@@ -90,6 +90,7 @@ const ANDROID_KEYCODE_MAP: Record<RemoteCommandType, number> = {
  * ADB message types for protocol communication
  * Reference: https://android.googlesource.com/platform/system/core/+/master/adb/protocol.txt
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const ADB_MESSAGE = {
   CNXN: 0x4e584e43, // 'CNXN' - Connection request
   AUTH: 0x48545541, // 'AUTH' - Authentication
@@ -347,10 +348,7 @@ export class AndroidTVAdapter implements PlatformAdapter {
    * Note: This doesn't verify if the device is an Android TV,
    * just that ADB port is open.
    */
-  private async probeAdbDevice(
-    ip: string,
-    timeoutMs: number
-  ): Promise<DiscoveredDevice | null> {
+  private async probeAdbDevice(ip: string, timeoutMs: number): Promise<DiscoveredDevice | null> {
     // For now, we use a simple HTTP-based check
     // In a full implementation, this would use TCP socket to check ADB port
     //
@@ -386,7 +384,11 @@ export class AndroidTVAdapter implements PlatformAdapter {
             const text = await res.text();
 
             // Check if this looks like an Android TV / Google TV device
-            if (text.includes('Chromecast') || text.includes('Android') || text.includes('Google')) {
+            if (
+              text.includes('Chromecast') ||
+              text.includes('Android') ||
+              text.includes('Google')
+            ) {
               return {
                 id: ip,
                 name: `Android TV (${ip})`,

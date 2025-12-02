@@ -83,7 +83,7 @@ class RokuSession implements TVSession {
 
   async sendCommand(command: RemoteCommandType): Promise<CommandResult> {
     debug.log(`Sending command: ${command}`);
-    
+
     if (this._status !== ConnectionStatus.Connected) {
       debug.warn(`Command failed: Not connected (status: ${this._status})`);
       return {
@@ -112,14 +112,14 @@ class RokuSession implements TVSession {
     try {
       const url = `${this._baseUrl}/keypress/${rokuKey}`;
       debug.log(`POST ${url}`);
-      
+
       const res = await fetch(url, { method: 'POST' });
-      
+
       if (res.ok) {
         debug.log(`Command ${command} (${rokuKey}) sent successfully`);
         return { success: true };
       }
-      
+
       debug.error(`Command failed: Roku returned status ${res.status}`);
       return {
         success: false,
@@ -181,22 +181,22 @@ export class RokuAdapter implements PlatformAdapter {
   async discover(timeoutMs = 3000): Promise<DiscoveredDevice[]> {
     debug.log('Starting device discovery...');
     debug.log(`Timeout: ${timeoutMs}ms`);
-    
+
     this._status = ConnectionStatus.Discovering;
 
     // Try SSDP discovery first (preferred method)
     if (isSsdpSupported()) {
       debug.log('SSDP is supported, trying SSDP discovery first...');
-      
+
       try {
         const ssdpDevices = await discoverRokuViaSsdp(timeoutMs);
-        
+
         if (ssdpDevices.length > 0) {
           debug.log(`SSDP discovery successful! Found ${ssdpDevices.length} device(s)`);
           this._status = ConnectionStatus.Idle;
           return ssdpDevices;
         }
-        
+
         debug.log('SSDP discovery returned no devices, falling back to subnet scanning');
       } catch (err) {
         debug.warn('SSDP discovery failed, falling back to subnet scanning:', err);
@@ -211,14 +211,14 @@ export class RokuAdapter implements PlatformAdapter {
 
   /**
    * Discover devices by scanning local subnets (fallback method)
-   * 
+   *
    * This is slower than SSDP but works in all environments including Expo Go.
    */
   private async discoverViaSubnetScan(timeoutMs: number): Promise<DiscoveredDevice[]> {
     debug.log('Starting subnet scan discovery...');
-    
+
     const discovered: DiscoveredDevice[] = [];
-    
+
     // Get network info for logging
     const networkInfo = await getDeviceNetworkInfo();
     if (networkInfo) {
@@ -230,17 +230,17 @@ export class RokuAdapter implements PlatformAdapter {
     } else {
       debug.log('Could not get device network info, using fallback subnets');
     }
-    
+
     // Get subnets to scan (sorted by priority)
     const subnetsToScan = await getSubnetsToScan();
     debug.log(`Subnets to scan: ${subnetsToScan.length}`);
     subnetsToScan.forEach((s: SubnetInfo) => {
       debug.log(`  - ${s.prefix}x (priority: ${s.priority}, primary: ${s.isPrimary})`);
     });
-    
+
     // Get device's own IP to skip during scan
     const deviceIp = networkInfo?.ipAddress;
-    
+
     // Group subnets by priority for tiered scanning
     const priorityGroups = new Map<number, SubnetInfo[]>();
     for (const subnet of subnetsToScan) {
@@ -248,27 +248,27 @@ export class RokuAdapter implements PlatformAdapter {
       group.push(subnet);
       priorityGroups.set(subnet.priority, group);
     }
-    
+
     // Scan by priority tier - stop early if we find devices
     const priorities = Array.from(priorityGroups.keys()).sort((a, b) => a - b);
-    
+
     for (const priority of priorities) {
       const tierSubnets = priorityGroups.get(priority) || [];
       debug.log(`\nScanning priority ${priority} subnets (${tierSubnets.length} subnets)...`);
-      
+
       const scanPromises: Promise<void>[] = [];
-      
+
       for (const subnet of tierSubnets) {
         debug.log(`  Scanning subnet: ${subnet.prefix}x`);
-        
+
         for (let i = 1; i <= 254; i++) {
           const ip = `${subnet.prefix}${i}`;
-          
+
           // Skip device's own IP
           if (ip === deviceIp) {
             continue;
           }
-          
+
           scanPromises.push(
             this.probeDevice(ip, timeoutMs)
               .then((dev) => {
@@ -283,24 +283,24 @@ export class RokuAdapter implements PlatformAdapter {
           );
         }
       }
-      
+
       debug.log(`  Probing ${scanPromises.length} addresses...`);
       await Promise.all(scanPromises);
-      
+
       // If we found devices in this priority tier, we can stop
       if (discovered.length > 0) {
         debug.log(`Found ${discovered.length} device(s) at priority ${priority}, stopping search`);
         break;
       }
-      
+
       debug.log(`  No devices found at priority ${priority}`);
     }
-    
+
     debug.log(`\nDiscovery completed. Found ${discovered.length} device(s)`);
     discovered.forEach((d) => {
       debug.log(`  - ${d.name} (${d.id}) at ${d.ipAddress}:${d.port}`);
     });
-    
+
     this._status = ConnectionStatus.Idle;
     return discovered;
   }
@@ -314,20 +314,20 @@ export class RokuAdapter implements PlatformAdapter {
     const timer = setTimeout(() => controller.abort(), timeoutMs);
 
     try {
-      const res = await fetch(url, { 
+      const res = await fetch(url, {
         signal: controller.signal,
         headers: {
-          'Accept': 'application/xml, text/xml, */*',
+          Accept: 'application/xml, text/xml, */*',
         },
       });
       clearTimeout(timer);
-      
+
       if (!res.ok) {
         return null;
       }
 
       const text = await res.text();
-      
+
       const nameMatch = text.match(/<user-device-name>([^<]+)<\/user-device-name>/);
       const serialMatch = text.match(/<serial-number>([^<]+)<\/serial-number>/);
 
@@ -359,24 +359,24 @@ export class RokuAdapter implements PlatformAdapter {
     // Retry logic for unstable network
     const maxRetries = 3;
     const timeoutMs = 5000;
-    
+
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       debug.log(`Connection attempt ${attempt}/${maxRetries}`);
-      
+
       try {
         const url = `${baseUrl}/query/device-info`;
         debug.log(`Verifying device at ${url}`);
-        
+
         // Use AbortController for timeout
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), timeoutMs);
-        
-        const res = await fetch(url, { 
+
+        const res = await fetch(url, {
           method: 'GET',
           signal: controller.signal,
         });
         clearTimeout(timer);
-        
+
         if (!res.ok) {
           debug.error(`Connection failed: Device returned status ${res.status}`);
           if (attempt === maxRetries) {
@@ -387,7 +387,7 @@ export class RokuAdapter implements PlatformAdapter {
           await this.delay(500);
           continue;
         }
-        
+
         const text = await res.text();
         debug.log(`Device info received (${text.length} bytes)`);
 
@@ -417,27 +417,26 @@ export class RokuAdapter implements PlatformAdapter {
         this._status = ConnectionStatus.Connected;
         debug.log(`Successfully connected to ${device.name}`);
         return new RokuSession(enhancedDevice);
-        
       } catch (err) {
         debug.error(`Connection attempt ${attempt} failed:`, err);
-        
+
         if (attempt === maxRetries) {
           debug.error(`All ${maxRetries} attempts failed`);
           this._status = ConnectionStatus.Unavailable;
           return null;
         }
-        
+
         debug.log(`Retrying in 500ms...`);
         await this.delay(500);
       }
     }
-    
+
     this._status = ConnectionStatus.Unavailable;
     return null;
   }
-  
+
   private delay(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   // ─────────────────────────────────────────────────────────────────────────

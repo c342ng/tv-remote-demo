@@ -3,14 +3,8 @@
  * Shows device info and connection status
  */
 import React from 'react';
-import {
-  Pressable,
-  View,
-  Text,
-  StyleSheet,
-  ActivityIndicator,
-} from 'react-native';
-import { TVDevice, TVPlatform, ConnectionStatus } from '../domain/models';
+import { Pressable, View, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import { TVDevice, TVPlatform } from '../domain/models';
 
 export interface DeviceListItemProps {
   /** Device to display */

@@ -2,17 +2,8 @@
  * Session Manager
  * Manages TV sessions with automatic reconnection strategy
  */
-import {
-  ConnectionStatus,
-  RemoteCommandType,
-  SessionErrorCode,
-  TVDevice,
-} from '../domain/models';
-import {
-  CommandResult,
-  PlatformAdapter,
-  TVSession,
-} from '../domain/remote-interfaces';
+import { ConnectionStatus, RemoteCommandType, SessionErrorCode, TVDevice } from '../domain/models';
+import { CommandResult, PlatformAdapter, TVSession } from '../domain/remote-interfaces';
 import { logger } from './logger';
 import { getAdapterForDevice } from '../protocols/factory';
 
@@ -31,8 +22,8 @@ interface ReconnectionConfig {
 }
 
 const DEFAULT_RECONNECTION_CONFIG: ReconnectionConfig = {
-  initialDelayMs: 2000,  // 2s
-  maxDelayMs: 8000,      // 8s
+  initialDelayMs: 2000, // 2s
+  maxDelayMs: 8000, // 8s
   backoffMultiplier: 2,
   maxRetries: 3,
 };
@@ -53,7 +44,7 @@ interface SessionState {
 /**
  * Session event types
  */
-export type SessionEventType = 
+export type SessionEventType =
   | 'connected'
   | 'disconnected'
   | 'reconnecting'
@@ -168,7 +159,7 @@ export class SessionManager {
 
       // Attempt connection
       const session = await adapter.connect(device);
-      
+
       if (!session) {
         throw new Error('Connection failed: no session returned');
       }
@@ -246,7 +237,7 @@ export class SessionManager {
       return result;
     } catch (error) {
       logger.command('error', `Command error: ${error}`, this.state.device.id);
-      
+
       // Trigger reconnection on error
       this.scheduleReconnection();
 
@@ -282,7 +273,8 @@ export class SessionManager {
 
     // Calculate delay with exponential backoff
     const delay = Math.min(
-      this.config.initialDelayMs * Math.pow(this.config.backoffMultiplier, this.state.retryCount - 1),
+      this.config.initialDelayMs *
+        Math.pow(this.config.backoffMultiplier, this.state.retryCount - 1),
       this.config.maxDelayMs
     );
 
@@ -309,7 +301,11 @@ export class SessionManager {
 
     const { device, adapter } = this.state;
 
-    logger.connection('info', `Attempting reconnection (${this.state.retryCount}/${this.config.maxRetries})`, device.id);
+    logger.connection(
+      'info',
+      `Attempting reconnection (${this.state.retryCount}/${this.config.maxRetries})`,
+      device.id
+    );
 
     try {
       const session = await adapter.connect(device);
@@ -369,13 +365,13 @@ export class SessionManager {
   /**
    * Switch to a different device
    * Disconnects from current device (if any) and connects to the new device
-   * 
+   *
    * @param device - The new device to connect to
    * @returns Promise<boolean> - True if switch was successful
    */
   async switchToDevice(device: TVDevice): Promise<boolean> {
     const currentDeviceId = this.state?.device?.id;
-    
+
     // If switching to the same device and already connected, just return success
     if (currentDeviceId === device.id && this.isConnected()) {
       logger.connection('info', `Already connected to ${device.name}`, device.id);
@@ -394,7 +390,7 @@ export class SessionManager {
 
   /**
    * Check if currently connected to a specific device
-   * 
+   *
    * @param deviceId - The device ID to check
    * @returns boolean - True if connected to the specified device
    */

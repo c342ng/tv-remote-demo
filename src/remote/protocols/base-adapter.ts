@@ -61,7 +61,7 @@ export class AdapterError extends Error {
 export abstract class BaseSession implements TVSession {
   abstract readonly sessionId: string;
   abstract readonly device: TVDevice;
-  
+
   protected status: ConnectionStatus = ConnectionStatus.Connected;
   protected lastActivityAt: string = new Date().toISOString();
 
@@ -107,7 +107,7 @@ export abstract class BaseSession implements TVSession {
  */
 export abstract class BasePlatformAdapter implements PlatformAdapter {
   abstract readonly platform: TVPlatform;
-  
+
   protected status: ConnectionStatus = ConnectionStatus.Idle;
   protected activeSession: TVSession | null = null;
 

@@ -22,15 +22,15 @@ const debug = {
   error: (...args: unknown[]) => console.error(DEBUG_TAG, ...args),
 };
 
-/** 
+/**
  * mDNS service types for Android TV discovery
- * 
+ *
  * react-native-zeroconf API:
  * - scan(type, protocol, domain) where:
  *   - type: just the service name (e.g., 'http', 'ssh', 'androidtvremote')
- *   - protocol: 'tcp' or 'udp'  
+ *   - protocol: 'tcp' or 'udp'
  *   - domain: 'local.' (default)
- * 
+ *
  * The library constructs the full service type as: _<type>._<protocol>.<domain>
  */
 const ANDROID_TV_SERVICE_NAME = 'androidtvremote';
@@ -95,8 +95,7 @@ function parseDeviceInfo(service: ZeroconfService): {
   // _googlecast._tcp uses: fn (friendly name), md (model), id
   // _androidtvremote._tcp uses: bt (device type), fn (friendly name)
 
-  const friendlyName =
-    txt.fn || txt.name || service.name || `Android TV (${service.host})`;
+  const friendlyName = txt.fn || txt.name || service.name || `Android TV (${service.host})`;
   const model = txt.md || txt.model || 'Android TV';
   const manufacturer = txt.mf || txt.manufacturer || 'Unknown';
   const id = txt.id || txt.uuid || service.name || service.host;
@@ -291,12 +290,12 @@ export async function discoverAndroidTvViaMdns(
           try {
             // Create a second zeroconf instance for Google Cast
             zeroconf2 = new ZeroconfClass();
-            
+
             zeroconf2.on('error', (err: Error) => {
               debug.warn('Zeroconf2 (GoogleCast) error:', err);
               // Don't cleanup, just log - this is a secondary scan
             });
-            
+
             zeroconf2.on('resolved', (service: ZeroconfService) => {
               if (isCompleted) return;
 

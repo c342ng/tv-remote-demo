@@ -85,9 +85,9 @@ describe('DeviceStore', () => {
       }
 
       // Try to add 11th device
-      await expect(
-        store.saveDevice(createMockDevice('11', 'TV 11'))
-      ).rejects.toThrow('Maximum device limit (10) reached');
+      await expect(store.saveDevice(createMockDevice('11', 'TV 11'))).rejects.toThrow(
+        'Maximum device limit (10) reached'
+      );
     });
 
     it('should persist to AsyncStorage', async () => {

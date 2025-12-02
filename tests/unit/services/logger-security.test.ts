@@ -7,7 +7,6 @@
 import { logger } from '@remote/services/logger';
 
 describe('Logger Security', () => {
-  let consoleSpy: jest.SpyInstance;
   let capturedLogs: string[] = [];
 
   beforeEach(() => {

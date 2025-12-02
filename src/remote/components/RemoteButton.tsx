@@ -14,11 +14,15 @@ import {
   Platform,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import { RemoteButton as RemoteButtonType, RemoteCommandType, TVCapabilities } from '../domain/models';
-import { 
-  RemoteButtonWithRules, 
-  isButtonVisible, 
-  isButtonDisabled 
+import {
+  RemoteButton as RemoteButtonType,
+  RemoteCommandType,
+  TVCapabilities,
+} from '../domain/models';
+import {
+  RemoteButtonWithRules,
+  isButtonVisible,
+  isButtonDisabled,
 } from '../domain/default-profile';
 
 export interface RemoteButtonProps {
@@ -59,7 +63,9 @@ const SHAPE_CONFIG = {
 /**
  * Check if button has visibility rules
  */
-function hasVisibilityRules(button: RemoteButtonType | RemoteButtonWithRules): button is RemoteButtonWithRules {
+function hasVisibilityRules(
+  button: RemoteButtonType | RemoteButtonWithRules
+): button is RemoteButtonWithRules {
   return 'visibilityRule' in button;
 }
 
@@ -99,15 +105,11 @@ export const RemoteButton: React.FC<RemoteButtonProps> = ({
   // Final disabled state combines explicit disabled prop and capability-based state
   const finalDisabled = disabled || isDisabledByCapability;
 
-  // Don't render if not visible
-  if (!isVisible) {
-    return null;
-  }
-
   // Track press start for response time measurement
-  const handlePressIn = useCallback((event: GestureResponderEvent) => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const handlePressIn = useCallback((_event: GestureResponderEvent) => {
     pressStartTime.current = Date.now();
-    
+
     // Immediate haptic feedback on press start
     if (Platform.OS === 'ios') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -117,7 +119,7 @@ export const RemoteButton: React.FC<RemoteButtonProps> = ({
   // Handle button press with response time tracking
   const handlePress = useCallback(() => {
     const responseTime = Date.now() - pressStartTime.current;
-    
+
     // Log warning if response exceeds 100ms target
     if (__DEV__ && responseTime > 100) {
       console.warn(`RemoteButton response time: ${responseTime}ms (target: <100ms)`);
@@ -154,6 +156,11 @@ export const RemoteButton: React.FC<RemoteButtonProps> = ({
     }
   }, [button.command, onPress]);
 
+  // Don't render if not visible
+  if (!isVisible) {
+    return null;
+  }
+
   const sizeConfig = SIZE_CONFIG[size];
   const borderRadius = SHAPE_CONFIG[shape](sizeConfig.width);
 
@@ -180,13 +187,7 @@ export const RemoteButton: React.FC<RemoteButtonProps> = ({
       accessibilityLabel={button.label}
       accessibilityState={{ disabled: finalDisabled }}
     >
-      <Text
-        style={[
-          styles.buttonText,
-          { fontSize: sizeConfig.fontSize },
-          textStyle,
-        ]}
-      >
+      <Text style={[styles.buttonText, { fontSize: sizeConfig.fontSize }, textStyle]}>
         {button.label}
       </Text>
     </Pressable>

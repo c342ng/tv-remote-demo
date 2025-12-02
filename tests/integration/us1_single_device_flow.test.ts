@@ -42,7 +42,7 @@ class MockIntegrationSession implements TVSession {
         },
       };
     }
-    
+
     this.commandLog.push(command);
     return { success: true };
   }
@@ -72,12 +72,14 @@ class MockIntegrationAdapter implements PlatformAdapter {
   private connectDelay: number;
   private shouldFailConnect: boolean;
 
-  constructor(options: {
-    devices?: DiscoveredDevice[];
-    discoveryDelay?: number;
-    connectDelay?: number;
-    shouldFailConnect?: boolean;
-  } = {}) {
+  constructor(
+    options: {
+      devices?: DiscoveredDevice[];
+      discoveryDelay?: number;
+      connectDelay?: number;
+      shouldFailConnect?: boolean;
+    } = {}
+  ) {
     this.mockDevices = options.devices ?? [
       {
         id: 'roku-001',
@@ -94,27 +96,27 @@ class MockIntegrationAdapter implements PlatformAdapter {
 
   async discover(timeoutMs?: number): Promise<DiscoveredDevice[]> {
     this.status = ConnectionStatus.Discovering;
-    
+
     // Simulate network discovery
-    await new Promise((resolve) => 
+    await new Promise((resolve) =>
       setTimeout(resolve, Math.min(this.discoveryDelay, timeoutMs ?? 5000))
     );
-    
+
     this.status = ConnectionStatus.Idle;
     return this.mockDevices;
   }
 
   async connect(device: TVDevice): Promise<TVSession | null> {
     this.status = ConnectionStatus.Connecting;
-    
+
     // Simulate connection handshake
     await new Promise((resolve) => setTimeout(resolve, this.connectDelay));
-    
+
     if (this.shouldFailConnect) {
       this.status = ConnectionStatus.Unavailable;
       return null;
     }
-    
+
     this.status = ConnectionStatus.Connected;
     this.activeSession = new MockIntegrationSession(device);
     return this.activeSession;
@@ -150,7 +152,7 @@ describe('US1: Single Device Flow Integration', () => {
       // 2. Discover devices
       expect(adapter.getStatus()).toBe(ConnectionStatus.Idle);
       const discovered = await adapter.discover();
-      
+
       expect(discovered).toHaveLength(1);
       expect(discovered[0].name).toBe('Test Roku TV');
       expect(discovered[0].platform).toBe(TVPlatform.Roku);
@@ -173,7 +175,7 @@ describe('US1: Single Device Flow Integration', () => {
       };
 
       const session = await adapter.connect(device);
-      
+
       expect(session).not.toBeNull();
       expect(adapter.getStatus()).toBe(ConnectionStatus.Connected);
 
@@ -207,7 +209,7 @@ describe('US1: Single Device Flow Integration', () => {
       });
 
       const discovered = await adapter.discover();
-      
+
       expect(discovered).toHaveLength(0);
       expect(adapter.getStatus()).toBe(ConnectionStatus.Idle);
     });
@@ -246,7 +248,7 @@ describe('US1: Single Device Flow Integration', () => {
       };
 
       const session = await adapter.connect(device);
-      
+
       expect(session).toBeNull();
       expect(adapter.getStatus()).toBe(ConnectionStatus.Unavailable);
     });
@@ -430,7 +432,7 @@ describe('US1: Single Device Flow Integration', () => {
       });
 
       const discovered = await adapter.discover();
-      
+
       expect(discovered).toHaveLength(3);
       expect(discovered.map((d) => d.name)).toEqual([
         'Living Room Roku',

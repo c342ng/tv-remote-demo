@@ -1,21 +1,33 @@
 /**
  * LG webOS TV Protocol Adapter
- * 
+ *
  * WebOS TVs use a WebSocket-based protocol called SSAP (Simple Service Access Protocol)
  * The connection uses ws://TV_IP:3000/ and requires a handshake with pairing key
- * 
+ *
  * SSAP Protocol References:
  * - Port: 3000 (default)
  * - Protocol: wss:// or ws://
  * - Commands are sent as JSON messages
- * 
+ *
  * TODO: Full implementation requires webOS SDK and real device testing
  */
 
-import { ConnectionStatus, TVDevice, TVPlatform, RemoteCommandType, SessionErrorCode } from '../domain/models';
-import { CommandResult, DiscoveredDevice, PlatformAdapter, TVSession } from '../domain/remote-interfaces';
+import {
+  ConnectionStatus,
+  TVDevice,
+  TVPlatform,
+  RemoteCommandType,
+  SessionErrorCode,
+} from '../domain/models';
+import {
+  CommandResult,
+  DiscoveredDevice,
+  PlatformAdapter,
+  TVSession,
+} from '../domain/remote-interfaces';
 
 /** WebOS SSAP message structure */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 interface SSAPMessage {
   type: 'register' | 'request' | 'response' | 'error';
   id?: string;
@@ -44,6 +56,7 @@ const WEBOS_COMMAND_URIS: Partial<Record<RemoteCommandType, string>> = {
 /**
  * WebOS TV Session implementation
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 class WebOSTVSession implements TVSession {
   readonly sessionId: string;
   readonly device: TVDevice;
@@ -107,7 +120,7 @@ class WebOSTVSession implements TVSession {
 
 /**
  * WebOS Platform Adapter
- * 
+ *
  * Discovery uses SSDP (same as Roku) with different service types:
  * - urn:lge-com:service:webos-second-screen:1
  * - urn:dial-multiscreen-org:device:dial:1
@@ -122,11 +135,11 @@ export class WebOSAdapter implements PlatformAdapter {
    */
   async discover(timeoutMs?: number): Promise<DiscoveredDevice[]> {
     this.status = ConnectionStatus.Discovering;
-    
+
     // TODO: Implement SSDP discovery for webOS
     // Search for: urn:lge-com:service:webos-second-screen:1
     console.log(`[WebOS] Discovery not implemented (timeout: ${timeoutMs ?? 5000}ms)`);
-    
+
     this.status = ConnectionStatus.Idle;
     return [];
   }
@@ -137,15 +150,15 @@ export class WebOSAdapter implements PlatformAdapter {
    */
   async connect(device: TVDevice): Promise<TVSession | null> {
     this.status = ConnectionStatus.Connecting;
-    
+
     // TODO: Implement WebSocket connection
     // 1. Connect to ws://device.ipAddress:3000
     // 2. Send registration message with pairing key
     // 3. Handle pairing prompt on TV if needed
     // 4. Receive client key for future connections
-    
+
     console.log(`[WebOS] Connection to ${device.name} not implemented`);
-    
+
     this.status = ConnectionStatus.Unavailable;
     return null;
   }

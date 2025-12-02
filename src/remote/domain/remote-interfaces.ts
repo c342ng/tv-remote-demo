@@ -4,11 +4,9 @@
 
 import type {
   TVDevice,
-  TVCapabilities,
   ConnectionStatus,
   RemoteCommandType,
   SessionError,
-  ConnectionSession,
   TVPlatform,
 } from './models';
 

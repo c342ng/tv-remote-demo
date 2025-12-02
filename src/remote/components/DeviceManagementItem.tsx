@@ -15,7 +15,6 @@ import {
   Animated,
 } from 'react-native';
 import { SavedDevice } from '../services/device-store';
-import { TVPlatform } from '../domain/models';
 import { getPlatformName, getPlatformIcon } from '../utils/platform-utils';
 
 /** Props for DeviceManagementItem */
@@ -96,18 +95,14 @@ export const DeviceManagementItem: React.FC<DeviceManagementItemProps> = ({
   // Handle delete action
   const handleDeletePress = useCallback(() => {
     setShowActions(false);
-    Alert.alert(
-      '删除设备',
-      `确定要删除 "${device.customName || device.name}" 吗？`,
-      [
-        { text: '取消', style: 'cancel' },
-        {
-          text: '删除',
-          style: 'destructive',
-          onPress: () => onDelete(device.id),
-        },
-      ]
-    );
+    Alert.alert('删除设备', `确定要删除 "${device.customName || device.name}" 吗？`, [
+      { text: '取消', style: 'cancel' },
+      {
+        text: '删除',
+        style: 'destructive',
+        onPress: () => onDelete(device.id),
+      },
+    ]);
   }, [device, onDelete]);
 
   // Handle favorite toggle
@@ -147,7 +142,10 @@ export const DeviceManagementItem: React.FC<DeviceManagementItemProps> = ({
 
           {/* Device info */}
           <View style={styles.infoContainer}>
-            <Text style={[styles.deviceName, isActive && styles.deviceNameActive]} numberOfLines={1}>
+            <Text
+              style={[styles.deviceName, isActive && styles.deviceNameActive]}
+              numberOfLines={1}
+            >
               {displayName}
             </Text>
             <Text style={styles.platformName}>{getPlatformName(device.platform)}</Text>
@@ -173,7 +171,7 @@ export const DeviceManagementItem: React.FC<DeviceManagementItemProps> = ({
         <Pressable style={styles.modalOverlay} onPress={() => setShowActions(false)}>
           <View style={styles.actionsContainer}>
             <Text style={styles.actionsTitle}>{displayName}</Text>
-            
+
             <TouchableOpacity
               style={styles.actionButton}
               onPress={handleRenamePress}
@@ -190,9 +188,7 @@ export const DeviceManagementItem: React.FC<DeviceManagementItemProps> = ({
                 testID={`${testID}-favorite`}
               >
                 <Text style={styles.actionIcon}>{device.isFavorite ? '☆' : '⭐'}</Text>
-                <Text style={styles.actionText}>
-                  {device.isFavorite ? '取消收藏' : '收藏'}
-                </Text>
+                <Text style={styles.actionText}>{device.isFavorite ? '取消收藏' : '收藏'}</Text>
               </TouchableOpacity>
             )}
 
@@ -205,10 +201,7 @@ export const DeviceManagementItem: React.FC<DeviceManagementItemProps> = ({
               <Text style={[styles.actionText, styles.deleteText]}>删除</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.cancelButton}
-              onPress={() => setShowActions(false)}
-            >
+            <TouchableOpacity style={styles.cancelButton} onPress={() => setShowActions(false)}>
               <Text style={styles.cancelText}>取消</Text>
             </TouchableOpacity>
           </View>

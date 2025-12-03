@@ -772,9 +772,11 @@ export class DiscoveryOrchestrator {
     this._blocksScanned = 0;
 
     // Set up event emitter
+    const existingEmitter = this._eventEmitter || {};
     this._eventEmitter = {
-      onDeviceFound,
-      onPhaseChange,
+      ...existingEmitter,
+      ...(onDeviceFound ? { onDeviceFound } : {}),
+      ...(onPhaseChange ? { onPhaseChange } : {}),
     };
 
     const startTime = Date.now();

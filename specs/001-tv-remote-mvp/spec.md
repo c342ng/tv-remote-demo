@@ -112,6 +112,9 @@
   - **FR-001.3 实时反馈规范**:
     - 任何发现方式（缓存验证、广播、扫描）找到设备后，应立即（<100ms）在设备列表中显示
     - 同一设备通过不同方式被发现时，应进行去重处理，不重复显示
+  - **FR-001.4 连接时停止发现规范**:
+    - 当用户选择任一有效设备并成功建立连接后，系统 MUST 立即停止所有发现活动（包括广播发现和主动扫描）
+    - 跳转到遥控器界面前，确保后台无残留的网络扫描任务，以节省网络资源和电量
 - **FR-002**: System MUST allow users to complete initial pairing/authorization with a selected TV,并在后续会话中复用已授权的连接信息（不强制重新配对）。认证凭据（如配对令牌、授权密钥）MUST 存储在 iOS Keychain 中以确保安全性。
 - **FR-003**: Users MUST be able to control a connected TV via a virtual remote UI including navigation (up/down/left/right), select/OK, back, home, volume up/down, mute, and power (where supported by platform).
 - **FR-004**: System MUST support managing multiple TVs (maximum 10 devices), including adding, renaming, selecting active device, and removing devices from the saved list。当达到10台上限时，用户需先删除现有设备才能添加新设备。

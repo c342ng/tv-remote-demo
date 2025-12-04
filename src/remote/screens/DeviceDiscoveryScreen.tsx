@@ -254,6 +254,13 @@ export const DeviceDiscoveryScreen: React.FC = () => {
           sessionRef.current = session;
           setConnectedDeviceId(device.id);
 
+          // Stop discovery immediately on successful connection
+          // This stops both broadcast discovery and active scanning
+          debug.log('Stopping discovery due to successful connection');
+          discoveryOrchestrator.stopDiscovery();
+          setIsScanning(false);
+          setDiscoveryPhase('complete');
+
           // Store session in global store for RemoteControlScreen
           setSession(device, session);
 

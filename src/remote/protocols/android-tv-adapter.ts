@@ -18,12 +18,6 @@
  * @module android-tv-adapter
  */
 
-import type {
-  PlatformAdapter,
-  DiscoveredDevice,
-  CommandResult,
-  TVSession,
-} from '../domain/remote-interfaces';
 import {
   TVDevice,
   ConnectionStatus,
@@ -33,6 +27,7 @@ import {
 } from '../domain/models';
 import { discoverAndroidTvViaMdns, isMdnsSupported } from '../services/mdns-discovery';
 import { getSubnetsToScan, getDeviceNetworkInfo, SubnetInfo } from '../services/network-utils';
+import TcpSocket from 'react-native-tcp-socket';
 
 /** Debug logger for Android TV adapter */
 const DEBUG_TAG = '[AndroidTVAdapter]';
@@ -125,11 +120,49 @@ class AndroidTVSession implements TVSession {
   readonly device: TVDevice;
   private _status: ConnectionStatus = ConnectionStatus.Connected;
   private _adbState: AdbConnectionState | null = null;
+  private socket: TcpSocket.Socket | null = null;
 
   constructor(device: TVDevice) {
     this.sessionId = `androidtv-${device.id}-${Date.now()}`;
     this.device = device;
     debug.log(`Session created: ${this.sessionId} for device ${device.name}`);
+  }
+
+  async connect(): Promise<void> {
+      return new Promise((resolve, reject) => {
+          try {
+              debug.log(`Connecting to ${this.device.ipAddress}:${ADB_DEFAULT_PORT}`);
+              this.socket = TcpSocket.createConnection({
+                  port: ADB_DEFAULT_PORT,
+                  host: this.device.ipAddress,
+              }, () => {
+                  debug.log('TCP connection established');
+                  this._status = ConnectionStatus.Connected;
+                  // TODO: Perform ADB handshake (CNXN)
+                  resolve();
+              });
+
+              this.socket.on('error', (error) => {
+                  debug.error('TCP socket error', error);
+                  this._status = ConnectionStatus.Disconnected;
+                  reject(error);
+              });
+
+              this.socket.on('close', () => {
+                  debug.log('TCP socket closed');
+                  this._status = ConnectionStatus.Disconnected;
+              });
+
+              this.socket.on('data', (data) => {
+                  debug.log('Received data:', data.toString('hex'));
+                  // TODO: Handle ADB packets
+              });
+
+          } catch (e) {
+              debug.error('Failed to create TCP connection', e);
+              reject(e);
+          }
+      });
   }
 
   /**
@@ -183,6 +216,11 @@ class AndroidTVSession implements TVSession {
       debug.log(`Would send keyevent ${keycode} for command ${command}`);
       debug.log(`ADB command: shell:input keyevent ${keycode}`);
 
+      if (this.socket) {
+          // Placeholder for sending ADB packet
+          // this.socket.write(buildAdbPacket(...));
+      }
+
       // Simulate command execution
       // In real implementation, this would be:
       // await this.sendAdbCommand(`shell:input keyevent ${keycode}`);
@@ -203,6 +241,10 @@ class AndroidTVSession implements TVSession {
 
   async disconnect(): Promise<void> {
     debug.log(`Disconnecting session: ${this.sessionId}`);
+    if (this.socket) {
+        this.socket.destroy();
+        this.socket = null;
+    }
     this._status = ConnectionStatus.Disconnected;
     this._adbState = null;
   }
@@ -431,54 +473,16 @@ export class AndroidTVAdapter implements PlatformAdapter {
     debug.log(`Connecting to device: ${device.name} at ${device.ipAddress}:${device.port}`);
     this._status = ConnectionStatus.Connecting;
 
-    const maxRetries = 3;
-
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
-      debug.log(`Connection attempt ${attempt}/${maxRetries}`);
-
-      try {
-        // Verify device is reachable
-        const isReachable = await this.verifyDeviceReachable(device.ipAddress, device.port);
-
-        if (!isReachable) {
-          debug.warn(`Device not reachable on attempt ${attempt}`);
-          if (attempt === maxRetries) {
-            this._status = ConnectionStatus.Unavailable;
-            return null;
-          }
-          await this.delay(500);
-          continue;
-        }
-
-        // Create session with default capabilities
-        const enhancedDevice: TVDevice = {
-          ...device,
-          capabilities: {
-            powerControl: true,
-            volumeControl: true,
-            channelControl: false, // Most Android TV don't have live TV
-            voiceInput: false, // Requires additional implementation
-            keyboard: true,
-            apps: true,
-          },
-        };
-
+    try {
+        const session = new AndroidTVSession(device);
+        await session.connect();
         this._status = ConnectionStatus.Connected;
-        debug.log(`Successfully connected to ${device.name}`);
-        return new AndroidTVSession(enhancedDevice);
-      } catch (err) {
-        debug.error(`Connection attempt ${attempt} failed:`, err);
-
-        if (attempt === maxRetries) {
-          this._status = ConnectionStatus.Unavailable;
-          return null;
-        }
-        await this.delay(500);
-      }
+        return session;
+    } catch (e) {
+        debug.error('Connection failed', e);
+        this._status = ConnectionStatus.Unavailable;
+        return null;
     }
-
-    this._status = ConnectionStatus.Unavailable;
-    return null;
   }
 
   /**

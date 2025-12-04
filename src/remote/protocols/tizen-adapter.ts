@@ -26,6 +26,8 @@ import {
   PlatformAdapter,
   TVSession,
 } from '../domain/remote-interfaces';
+import { discoverDevicesViaSsdp } from '../services/ssdp-discovery';
+import { Buffer } from 'buffer';
 
 /** Tizen remote control key codes */
 const TIZEN_KEY_CODES: Partial<Record<RemoteCommandType, string>> = {
@@ -51,7 +53,6 @@ const TIZEN_KEY_CODES: Partial<Record<RemoteCommandType, string>> = {
 };
 
 /** Tizen WebSocket message structure */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 interface TizenMessage {
   method: 'ms.channel.connect' | 'ms.remote.control';
   params: {
@@ -61,23 +62,94 @@ interface TizenMessage {
     TypeOfRemote?: string;
     token?: string;
     name?: string;
+    event?: string;
+    data?: {
+        token?: string;
+    };
   };
 }
+
+const TIZEN_SERVICE_TYPE = 'urn:samsung.com:device:RemoteControlReceiver:1';
+const APP_NAME = 'TVRemoteApp';
 
 /**
  * Tizen TV Session implementation
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 class TizenTVSession implements TVSession {
   readonly sessionId: string;
   readonly device: TVDevice;
-  private status: ConnectionStatus = ConnectionStatus.Connected;
+  private status: ConnectionStatus = ConnectionStatus.Connecting;
   private token: string | null = null;
+  private socket: WebSocket | null = null;
 
   constructor(device: TVDevice, token?: string) {
     this.sessionId = `tizen-session-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
     this.device = device;
     this.token = token ?? null;
+  }
+
+  async connect(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      try {
+        const name = Buffer.from(APP_NAME).toString('base64');
+        let url = `wss://${this.device.ipAddress}:8002/api/v2/channels/samsung.remote.control?name=${name}`;
+        if (this.token) {
+            url += `&token=${this.token}`;
+        }
+
+        console.log(`[Tizen] Connecting to ${url}`);
+        this.socket = new WebSocket(url);
+
+        this.socket.onopen = () => {
+          console.log('[Tizen] WebSocket connected');
+          // Tizen usually sends a token in the response to connection or we wait for 'ms.channel.connect' response
+        };
+
+        this.socket.onmessage = (event) => {
+          try {
+            const message = JSON.parse(event.data as string);
+            this.handleMessage(message, resolve, reject);
+          } catch (e) {
+            console.error('[Tizen] Failed to parse message', e);
+          }
+        };
+
+        this.socket.onerror = (error) => {
+          console.error('[Tizen] WebSocket error', error);
+          this.status = ConnectionStatus.Disconnected;
+          reject(error);
+        };
+
+        this.socket.onclose = () => {
+          console.log('[Tizen] WebSocket closed');
+          this.status = ConnectionStatus.Disconnected;
+        };
+      } catch (e) {
+        this.status = ConnectionStatus.Disconnected;
+        reject(e);
+      }
+    });
+  }
+
+  private handleMessage(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    message: any,
+    resolve: () => void,
+    reject: (reason?: any) => void
+  ) {
+      if (message.event === 'ms.channel.connect') {
+          if (message.data && message.data.token) {
+              this.token = message.data.token;
+              console.log('[Tizen] Token received:', this.token);
+          }
+          this.status = ConnectionStatus.Connected;
+          console.log('[Tizen] Connected successfully');
+          resolve();
+      } else if (message.event === 'ms.channel.unauthorized') {
+          console.error('[Tizen] Unauthorized');
+          this.status = ConnectionStatus.Disconnected;
+          reject(new Error('Unauthorized'));
+      }
   }
 
   async sendCommand(command: RemoteCommandType): Promise<CommandResult> {
@@ -104,24 +176,37 @@ class TizenTVSession implements TVSession {
       };
     }
 
-    // TODO: Implement actual WebSocket communication
-    // Message format: {"method":"ms.remote.control","params":{"Cmd":"Click","DataOfCmd":"KEY_...",
-    //                  "Option":"false","TypeOfRemote":"SendRemoteKey"}}
-    console.log(`[Tizen] Would send key: ${keyCode} for command ${command}`);
-
-    return {
-      success: false,
-      error: {
-        code: SessionErrorCode.Unknown,
-        message: 'Tizen adapter not fully implemented',
-        at: new Date().toISOString(),
-      },
+    const payload = {
+        method: 'ms.remote.control',
+        params: {
+            Cmd: 'Click',
+            DataOfCmd: keyCode,
+            Option: 'false',
+            TypeOfRemote: 'SendRemoteKey'
+        }
     };
+
+    if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+        this.socket.send(JSON.stringify(payload));
+        return { success: true };
+    } else {
+        return {
+            success: false,
+            error: {
+                code: SessionErrorCode.NetworkUnreachable,
+                message: 'Socket not open',
+                at: new Date().toISOString()
+            }
+        };
+    }
   }
 
   async disconnect(): Promise<void> {
+    if (this.socket) {
+        this.socket.close();
+        this.socket = null;
+    }
     this.status = ConnectionStatus.Disconnected;
-    // TODO: Close WebSocket connection
     console.log(`[Tizen] Session ${this.sessionId} disconnected`);
   }
 
@@ -147,13 +232,15 @@ export class TizenAdapter implements PlatformAdapter {
    */
   async discover(timeoutMs?: number): Promise<DiscoveredDevice[]> {
     this.status = ConnectionStatus.Discovering;
-
-    // TODO: Implement SSDP discovery for Tizen
-    // Search for: urn:samsung.com:device:RemoteControlReceiver:1
-    console.log(`[Tizen] Discovery not implemented (timeout: ${timeoutMs ?? 5000}ms)`);
-
-    this.status = ConnectionStatus.Idle;
-    return [];
+    try {
+        const devices = await discoverDevicesViaSsdp(TIZEN_SERVICE_TYPE, TVPlatform.Tizen, timeoutMs);
+        this.status = ConnectionStatus.Idle;
+        return devices;
+    } catch (e) {
+        console.error('[Tizen] Discovery failed', e);
+        this.status = ConnectionStatus.Idle;
+        return [];
+    }
   }
 
   /**
@@ -163,17 +250,16 @@ export class TizenAdapter implements PlatformAdapter {
   async connect(device: TVDevice): Promise<TVSession | null> {
     this.status = ConnectionStatus.Connecting;
 
-    // TODO: Implement secure WebSocket connection
-    // 1. Connect to wss://device.ipAddress:8002/api/v2/channels/samsung.remote.control
-    // 2. Send ms.channel.connect with app name (base64 encoded)
-    // 3. Handle pairing prompt on TV if needed (user must allow)
-    // 4. Receive token for future connections
-    // 5. Store token for persistent connections
-
-    console.log(`[Tizen] Connection to ${device.name} not implemented`);
-
-    this.status = ConnectionStatus.Unavailable;
-    return null;
+    try {
+        const session = new TizenTVSession(device);
+        await session.connect();
+        this.status = ConnectionStatus.Connected;
+        return session;
+    } catch (e) {
+        console.error('[Tizen] Connection failed', e);
+        this.status = ConnectionStatus.Unavailable;
+        return null;
+    }
   }
 
   getStatus(): ConnectionStatus {

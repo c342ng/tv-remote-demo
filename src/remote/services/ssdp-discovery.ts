@@ -1,13 +1,8 @@
 /**
- * SSDP Discovery Service for Roku devices
+ * Generic SSDP Discovery Service
  *
- * Uses SSDP (Simple Service Discovery Protocol) to discover Roku devices
- * on the local network. This is much faster than IP subnet scanning.
- *
- * Protocol details (from research.md):
- * - Roku advertises via SSDP with service type `roku:ecp`
- * - Send M-SEARCH request to 239.255.255.250:1900
- * - Response contains LOCATION field with device ECP URL
+ * Uses SSDP (Simple Service Discovery Protocol) to discover devices
+ * on the local network.
  *
  * @module ssdp-discovery
  */
@@ -31,7 +26,10 @@ const SSDP_MULTICAST_ADDRESS = '239.255.255.250';
 const SSDP_PORT = 1900;
 
 /** Roku ECP service type for SSDP discovery */
-const ROKU_SERVICE_TYPE = 'roku:ecp';
+export const ROKU_SERVICE_TYPE = 'roku:ecp';
+
+/** WebOS service type for SSDP discovery */
+export const WEBOS_SERVICE_TYPE = 'urn:lge-com:service:webos-second-screen:1';
 
 /** Default timeout for SSDP discovery in milliseconds (5 seconds for better reliability) */
 const DEFAULT_TIMEOUT_MS = 5000;
@@ -210,24 +208,15 @@ async function fetchDeviceInfo(
 }
 
 /**
- * Discover Roku devices on the local network using SSDP
- *
- * This function sends an M-SEARCH request to the SSDP multicast address
- * and listens for responses from Roku devices.
- *
- * @param timeoutMs - Maximum time to wait for responses (default: 3000ms)
- * @returns Promise resolving to array of discovered devices
- *
- * @example
- * ```typescript
- * const devices = await discoverRokuViaSsdp();
- * // devices: [{ id: 'P0A070000000', name: 'Living Room Roku', ... }]
- * ```
+ * Generic SSDP discovery function
  */
-export async function discoverRokuViaSsdp(
-  timeoutMs: number = DEFAULT_TIMEOUT_MS
+export async function discoverDevicesViaSsdp(
+  serviceType: string,
+  platform: TVPlatform,
+  timeoutMs: number = DEFAULT_TIMEOUT_MS,
+  deviceInfoFetcher?: (ip: string, port: number) => Promise<{ name: string; model: string; serialNumber: string } | null>
 ): Promise<DiscoveredDevice[]> {
-  debug.log('Starting SSDP discovery...');
+  debug.log(`Starting SSDP discovery for ${platform} (${serviceType})...`);
   debug.log(`Timeout: ${timeoutMs}ms`);
 
   // Get the dgram module
@@ -272,7 +261,7 @@ export async function discoverRokuViaSsdp(
       const devices = Array.from(discovered.values());
       debug.log(`Discovery completed. Found ${devices.length} device(s)`);
       devices.forEach((d) => {
-        debug.log(`  Found Roku: ${d.name} at ${d.ipAddress}`);
+        debug.log(`  Found ${platform}: ${d.name} at ${d.ipAddress}`);
       });
       resolve(devices);
     };
@@ -307,11 +296,11 @@ export async function discoverRokuViaSsdp(
         debug.log(`Received SSDP response from ${rinfo.address}:${rinfo.port}`);
 
         const response = msg.toString('utf8');
-        debug.log(`Response content (first 200 chars): ${response.substring(0, 200)}`);
+        // debug.log(`Response content (first 200 chars): ${response.substring(0, 200)}`);
 
         // Parse SSDP response
         const { location, usn } = parseSsdpResponse(response);
-        debug.log(`Parsed - LOCATION: ${location}, USN: ${usn}`);
+        // debug.log(`Parsed - LOCATION: ${location}, USN: ${usn}`);
 
         if (!location) {
           debug.warn('Response missing LOCATION header');
@@ -331,27 +320,29 @@ export async function discoverRokuViaSsdp(
 
         // Skip if already discovered
         if (discovered.has(deviceId)) {
-          debug.log(`Duplicate device skipped: ${deviceId}`);
+          // debug.log(`Duplicate device skipped: ${deviceId}`);
           return;
         }
 
-        debug.log(`New Roku discovered at ${urlInfo.ip}:${urlInfo.port} (ID: ${deviceId})`);
+        debug.log(`New ${platform} discovered at ${urlInfo.ip}:${urlInfo.port} (ID: ${deviceId})`);
 
-        // Fetch device info
-        debug.log(`Fetching device info from ${urlInfo.ip}:${urlInfo.port}...`);
-        const deviceInfo = await fetchDeviceInfo(urlInfo.ip, urlInfo.port);
-        debug.log(`Device info: ${JSON.stringify(deviceInfo)}`);
+        let deviceInfo = null;
+        if (deviceInfoFetcher) {
+            debug.log(`Fetching device info from ${urlInfo.ip}:${urlInfo.port}...`);
+            deviceInfo = await deviceInfoFetcher(urlInfo.ip, urlInfo.port);
+            debug.log(`Device info: ${JSON.stringify(deviceInfo)}`);
+        }
 
         const device: DiscoveredDevice = {
           id: deviceInfo?.serialNumber ?? deviceId,
-          name: deviceInfo?.name ?? `Roku (${urlInfo.ip})`,
+          name: deviceInfo?.name ?? `${platform} (${urlInfo.ip})`,
           ipAddress: urlInfo.ip,
           port: urlInfo.port,
-          platform: TVPlatform.Roku,
+          platform: platform,
         };
 
         discovered.set(device.id, device);
-        debug.log(`[SSDP] Found Roku: ${device.name} at ${device.ipAddress}`);
+        debug.log(`[SSDP] Found ${platform}: ${device.name} at ${device.ipAddress}`);
       });
 
       // Bind to a random port and send M-SEARCH request
@@ -366,10 +357,10 @@ export async function discoverRokuViaSsdp(
         const address = socket.address?.() || { port: 'unknown' };
         debug.log(`Socket bound to port ${address.port}`);
 
-        const request = buildMSearchRequest(ROKU_SERVICE_TYPE);
+        const request = buildMSearchRequest(serviceType);
 
         debug.log('Sending M-SEARCH request to multicast address...');
-        debug.log(`Request:\n${request}`);
+        // debug.log(`Request:\n${request}`);
 
         // react-native-udp accepts string directly, it will convert to Buffer internally
         // Using simplified API: send(msg, port, address, callback)
@@ -395,6 +386,27 @@ export async function discoverRokuViaSsdp(
       cleanup('create_socket_error');
     }
   });
+}
+
+/**
+ * Discover Roku devices on the local network using SSDP
+ *
+ * This function sends an M-SEARCH request to the SSDP multicast address
+ * and listens for responses from Roku devices.
+ *
+ * @param timeoutMs - Maximum time to wait for responses (default: 3000ms)
+ * @returns Promise resolving to array of discovered devices
+ *
+ * @example
+ * ```typescript
+ * const devices = await discoverRokuViaSsdp();
+ * // devices: [{ id: 'P0A070000000', name: 'Living Room Roku', ... }]
+ * ```
+ */
+export async function discoverRokuViaSsdp(
+  timeoutMs: number = DEFAULT_TIMEOUT_MS
+): Promise<DiscoveredDevice[]> {
+    return discoverDevicesViaSsdp(ROKU_SERVICE_TYPE, TVPlatform.Roku, timeoutMs, fetchDeviceInfo);
 }
 
 /**

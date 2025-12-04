@@ -66,7 +66,7 @@ export function isAdapterAvailable(platform: TVPlatform): boolean {
       return true;
     case TVPlatform.WebOS:
     case TVPlatform.Tizen:
-      return false; // Skeleton only, not fully implemented
+      return true; // Implemented
     default:
       return false;
   }

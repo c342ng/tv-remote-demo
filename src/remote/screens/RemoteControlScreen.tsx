@@ -140,14 +140,25 @@ export const RemoteControlScreen: React.FC = () => {
         savedDeviceCount={savedDeviceCount}
       />
 
-      {/* Tab bar for switching between direction controls and number pad */}
-      <RemoteTabBar activeTab={activeTab} onTabChange={handleTabChange} />
+      {!isConnected ? (
+        <View style={styles.emptyStateContainer}>
+          <MaterialIcons name="tv-off" size={80} color="#333" />
+          <Text style={styles.emptyStateText}>未连接设备</Text>
+          <Text style={styles.emptyStateSubtext}>请点击右上角或下方按钮连接电视</Text>
+          <TouchableOpacity style={styles.connectButton} onPress={handleNavigateToDiscovery}>
+            <Text style={styles.connectButtonText}>去连接</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <>
+          {/* Tab bar for switching between direction controls and number pad */}
+          <RemoteTabBar activeTab={activeTab} onTabChange={handleTabChange} />
 
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
+          <ScrollView
+            style={styles.scrollView}
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+          >
         {/* System buttons row - always visible at top */}
         <View style={styles.buttonRow}>
           {buttonGroups.system.map((button) => (
@@ -309,6 +320,8 @@ export const RemoteControlScreen: React.FC = () => {
           />
         )}
       </ScrollView>
+        </>
+      )}
     </SafeAreaView>
   );
 };
@@ -394,6 +407,36 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 10,
     marginVertical: 4,
+  },
+  emptyStateContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  emptyStateText: {
+    color: '#fff',
+    fontSize: 20,
+    fontWeight: '600',
+    marginTop: 16,
+  },
+  emptyStateSubtext: {
+    color: '#888',
+    fontSize: 14,
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  connectButton: {
+    marginTop: 24,
+    backgroundColor: '#2196F3',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 24,
+  },
+  connectButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
 

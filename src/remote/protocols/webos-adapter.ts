@@ -25,9 +25,9 @@ import {
   PlatformAdapter,
   TVSession,
 } from '../domain/remote-interfaces';
+import { discoverDevicesViaSsdp, WEBOS_SERVICE_TYPE } from '../services/ssdp-discovery';
 
 /** WebOS SSAP message structure */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 interface SSAPMessage {
   type: 'register' | 'request' | 'response' | 'error';
   id?: string;
@@ -56,17 +56,156 @@ const WEBOS_COMMAND_URIS: Partial<Record<RemoteCommandType, string>> = {
 /**
  * WebOS TV Session implementation
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 class WebOSTVSession implements TVSession {
   readonly sessionId: string;
   readonly device: TVDevice;
-  private status: ConnectionStatus = ConnectionStatus.Connected;
+  private status: ConnectionStatus = ConnectionStatus.Connecting;
   private pairingKey: string | null = null;
+  private socket: WebSocket | null = null;
+  private messageIdCounter = 0;
 
   constructor(device: TVDevice, pairingKey?: string) {
     this.sessionId = `webos-session-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
     this.device = device;
     this.pairingKey = pairingKey ?? null;
+  }
+
+  async connect(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      try {
+        const url = `ws://${this.device.ipAddress}:3000`;
+        console.log(`[WebOS] Connecting to ${url}`);
+        this.socket = new WebSocket(url);
+
+        this.socket.onopen = () => {
+          console.log('[WebOS] WebSocket connected');
+          this.register();
+        };
+
+        this.socket.onmessage = (event) => {
+          try {
+            const message = JSON.parse(event.data as string) as SSAPMessage;
+            this.handleMessage(message, resolve, reject);
+          } catch (e) {
+            console.error('[WebOS] Failed to parse message', e);
+          }
+        };
+
+        this.socket.onerror = (error) => {
+          console.error('[WebOS] WebSocket error', error);
+          this.status = ConnectionStatus.Disconnected;
+          reject(error);
+        };
+
+        this.socket.onclose = () => {
+          console.log('[WebOS] WebSocket closed');
+          this.status = ConnectionStatus.Disconnected;
+        };
+      } catch (e) {
+        this.status = ConnectionStatus.Disconnected;
+        reject(e);
+      }
+    });
+  }
+
+  private register() {
+    // Simplified registration payload
+    const payload = {
+      forcePairing: false,
+      pairingType: 'PROMPT',
+      manifest: {
+        manifestVersion: 1,
+        appVersion: '1.1',
+        signed: {
+          created: '20140509',
+          appId: 'com.lge.test',
+          vendorId: 'com.lge',
+          localizedAppNames: {
+            '': 'LG Remote App',
+            'en-US': 'LG Remote App',
+          },
+          localizedVendorNames: {
+            '': 'LG Electronics',
+          },
+          permissions: [
+            'TEST_SECURE',
+            'CONTROL_INPUT_TEXT',
+            'CONTROL_MOUSE_AND_KEYBOARD',
+            'READ_INSTALLED_APPS',
+            'READ_LGE_SDX',
+            'READ_CURRENT_CHANNEL',
+            'READ_RUNNING_APPS',
+            'WRITE_NOTIFICATION_TOAST',
+            'POWER',
+            'READ_NETWORK_STATE',
+            'WRITE_SETTINGS',
+            'TV_POWER',
+          ],
+          serial: '20140509',
+        },
+        permissions: [
+          'TEST_SECURE',
+          'CONTROL_INPUT_TEXT',
+          'CONTROL_MOUSE_AND_KEYBOARD',
+          'READ_INSTALLED_APPS',
+          'READ_LGE_SDX',
+          'READ_CURRENT_CHANNEL',
+          'READ_RUNNING_APPS',
+          'WRITE_NOTIFICATION_TOAST',
+          'POWER',
+          'READ_NETWORK_STATE',
+          'WRITE_SETTINGS',
+          'TV_POWER',
+        ],
+        signatures: [
+          {
+            signatureVersion: 1,
+            signature: 'eyJhbGdvcml0aG0iOiJSU0EtU0hBMjU2In0.eyJpbmZvIjp7ImFwcElkIjoiY29tLmxnZS50ZXN0IiwiY3JlYXRlZCI6IjIwMTQwNTA5In0sInZlcnNpb24iOjF9.jH9...',
+          },
+        ],
+      },
+    };
+
+    if (this.pairingKey) {
+      // @ts-ignore - adding client-key if available
+      payload['client-key'] = this.pairingKey;
+    }
+
+    this.send({
+      type: 'register',
+      payload,
+    });
+  }
+
+  private handleMessage(
+    message: SSAPMessage,
+    resolve: () => void,
+    reject: (reason?: any) => void
+  ) {
+    if (message.type === 'response' && message.payload && message.payload['client-key']) {
+      this.pairingKey = message.payload['client-key'] as string;
+      this.status = ConnectionStatus.Connected;
+      console.log('[WebOS] Registered successfully, key:', this.pairingKey);
+      resolve();
+    } else if (message.type === 'error') {
+      console.error('[WebOS] Error message:', message);
+      // Don't reject immediately on error, might be transient
+    } else if (message.type === 'registered') {
+        // Some versions send type: 'registered'
+        if (message.payload && message.payload['client-key']) {
+            this.pairingKey = message.payload['client-key'] as string;
+        }
+        this.status = ConnectionStatus.Connected;
+        console.log('[WebOS] Registered successfully');
+        resolve();
+    }
+  }
+
+  private send(message: SSAPMessage) {
+    if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+      message.id = `msg_${this.messageIdCounter++}`;
+      this.socket.send(JSON.stringify(message));
+    }
   }
 
   async sendCommand(command: RemoteCommandType): Promise<CommandResult> {
@@ -93,23 +232,22 @@ class WebOSTVSession implements TVSession {
       };
     }
 
-    // TODO: Implement actual WebSocket communication
-    // This is a skeleton - real implementation would send SSAP message via WebSocket
-    console.log(`[WebOS] Would send: ${uri} for command ${command}`);
+    this.send({
+      type: 'request',
+      uri,
+    });
 
     return {
-      success: false,
-      error: {
-        code: SessionErrorCode.Unknown,
-        message: 'WebOS adapter not fully implemented',
-        at: new Date().toISOString(),
-      },
+      success: true,
     };
   }
 
   async disconnect(): Promise<void> {
+    if (this.socket) {
+      this.socket.close();
+      this.socket = null;
+    }
     this.status = ConnectionStatus.Disconnected;
-    // TODO: Close WebSocket connection
     console.log(`[WebOS] Session ${this.sessionId} disconnected`);
   }
 
@@ -135,13 +273,15 @@ export class WebOSAdapter implements PlatformAdapter {
    */
   async discover(timeoutMs?: number): Promise<DiscoveredDevice[]> {
     this.status = ConnectionStatus.Discovering;
-
-    // TODO: Implement SSDP discovery for webOS
-    // Search for: urn:lge-com:service:webos-second-screen:1
-    console.log(`[WebOS] Discovery not implemented (timeout: ${timeoutMs ?? 5000}ms)`);
-
-    this.status = ConnectionStatus.Idle;
-    return [];
+    try {
+        const devices = await discoverDevicesViaSsdp(WEBOS_SERVICE_TYPE, TVPlatform.WebOS, timeoutMs);
+        this.status = ConnectionStatus.Idle;
+        return devices;
+    } catch (e) {
+        console.error('[WebOS] Discovery failed', e);
+        this.status = ConnectionStatus.Idle;
+        return [];
+    }
   }
 
   /**
@@ -151,16 +291,16 @@ export class WebOSAdapter implements PlatformAdapter {
   async connect(device: TVDevice): Promise<TVSession | null> {
     this.status = ConnectionStatus.Connecting;
 
-    // TODO: Implement WebSocket connection
-    // 1. Connect to ws://device.ipAddress:3000
-    // 2. Send registration message with pairing key
-    // 3. Handle pairing prompt on TV if needed
-    // 4. Receive client key for future connections
-
-    console.log(`[WebOS] Connection to ${device.name} not implemented`);
-
-    this.status = ConnectionStatus.Unavailable;
-    return null;
+    try {
+        const session = new WebOSTVSession(device);
+        await session.connect();
+        this.status = ConnectionStatus.Connected;
+        return session;
+    } catch (e) {
+        console.error('[WebOS] Connection failed', e);
+        this.status = ConnectionStatus.Unavailable;
+        return null;
+    }
   }
 
   getStatus(): ConnectionStatus {

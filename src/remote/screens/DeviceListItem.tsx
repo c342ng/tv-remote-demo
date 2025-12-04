@@ -4,6 +4,7 @@
  */
 import React from 'react';
 import { Pressable, View, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import { MaterialIcons } from '@expo/vector-icons';
 import { TVDevice, TVPlatform } from '../domain/models';
 
 export interface DeviceListItemProps {
@@ -18,12 +19,12 @@ export interface DeviceListItemProps {
 }
 
 // Platform icon mapping
-const PLATFORM_ICONS: Record<TVPlatform, string> = {
-  [TVPlatform.Roku]: '📺',
-  [TVPlatform.AndroidTV]: '🤖',
-  [TVPlatform.FireTV]: '🔥',
-  [TVPlatform.WebOS]: '🌐',
-  [TVPlatform.Tizen]: '⭐',
+const PLATFORM_ICONS: Record<TVPlatform, keyof typeof MaterialIcons.glyphMap> = {
+  [TVPlatform.Roku]: 'tv',
+  [TVPlatform.AndroidTV]: 'android',
+  [TVPlatform.FireTV]: 'whatshot',
+  [TVPlatform.WebOS]: 'web',
+  [TVPlatform.Tizen]: 'stars',
 };
 
 // Platform display names
@@ -58,20 +59,24 @@ export const DeviceListItem: React.FC<DeviceListItemProps> = ({
       disabled={isConnecting}
     >
       {/* Platform icon */}
-      <View style={styles.iconContainer}>
-        <Text style={styles.icon}>{platformIcon}</Text>
+      <View style={[styles.iconContainer, isConnected && styles.iconContainerConnected]}>
+        <MaterialIcons 
+          name={platformIcon} 
+          size={24} 
+          color={isConnected ? '#fff' : '#aaa'} 
+        />
       </View>
 
       {/* Device info */}
       <View style={styles.infoContainer}>
-        <Text style={styles.deviceName} numberOfLines={1}>
+        <Text style={[styles.deviceName, isConnected && styles.textConnected]} numberOfLines={1}>
           {device.name}
         </Text>
-        <Text style={styles.deviceDetails} numberOfLines={1}>
+        <Text style={[styles.deviceDetails, isConnected && styles.textConnectedDim]} numberOfLines={1}>
           {platformName} • {device.ipAddress}
         </Text>
         {device.modelName && (
-          <Text style={styles.modelName} numberOfLines={1}>
+          <Text style={[styles.modelName, isConnected && styles.textConnectedDim]} numberOfLines={1}>
             {device.modelName}
           </Text>
         )}
@@ -86,7 +91,7 @@ export const DeviceListItem: React.FC<DeviceListItemProps> = ({
             <Text style={styles.connectedText}>已连接</Text>
           </View>
         ) : (
-          <Text style={styles.connectHint}>点击连接</Text>
+          <MaterialIcons name="chevron-right" size={24} color="#666" />
         )}
       </View>
     </Pressable>
@@ -130,8 +135,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginRight: 12,
   },
-  icon: {
-    fontSize: 24,
+  iconContainerConnected: {
+    backgroundColor: '#4CAF50',
   },
   infoContainer: {
     flex: 1,
@@ -150,6 +155,12 @@ const styles = StyleSheet.create({
     color: '#666',
     fontSize: 11,
     marginTop: 2,
+  },
+  textConnected: {
+    color: '#fff',
+  },
+  textConnectedDim: {
+    color: 'rgba(255,255,255,0.7)',
   },
   statusContainer: {
     marginLeft: 12,

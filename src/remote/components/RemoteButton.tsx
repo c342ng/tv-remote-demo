@@ -164,6 +164,20 @@ export const RemoteButton: React.FC<RemoteButtonProps> = ({
   const sizeConfig = SIZE_CONFIG[size];
   const borderRadius = SHAPE_CONFIG[shape](sizeConfig.width);
 
+  // Determine base color
+  const baseColor = useMemo(() => {
+    if (button.command === RemoteCommandType.Power) return '#D32F2F'; // Red
+    if (button.command === RemoteCommandType.Select) return '#3a3a3a'; // Lighter
+    return '#2a2a2a';
+  }, [button.command]);
+
+  // Determine pressed color
+  const pressedColor = useMemo(() => {
+    if (button.command === RemoteCommandType.Power) return '#B71C1C'; // Darker Red
+    if (button.command === RemoteCommandType.Select) return '#505050';
+    return '#4a4a4a';
+  }, [button.command]);
+
   return (
     <Pressable
       onPress={handlePress}
@@ -179,7 +193,7 @@ export const RemoteButton: React.FC<RemoteButtonProps> = ({
           borderRadius,
           opacity: finalDisabled ? 0.4 : 1,
           transform: [{ scale: pressed ? 0.95 : 1 }],
-          backgroundColor: pressed ? '#4a4a4a' : '#2a2a2a',
+          backgroundColor: pressed ? pressedColor : baseColor,
         },
         style,
       ]}

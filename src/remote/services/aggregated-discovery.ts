@@ -26,6 +26,8 @@ import { TVPlatform } from '../domain/models';
 import { RokuAdapter } from '../protocols/roku-adapter';
 import { AndroidTVAdapter } from '../protocols/android-tv-adapter';
 import { FireTVAdapter } from '../protocols/fire-tv-adapter';
+import { WebOSAdapter } from '../protocols/webos-adapter';
+import { TizenAdapter } from '../protocols/tizen-adapter';
 import { discoveryCache } from './discovery-cache';
 import { getDeviceNetworkInfo, generateScanBlocks, type ScanBlock } from './network-utils';
 import { probePort } from './port-scanner';
@@ -121,9 +123,8 @@ const ADAPTER_FACTORIES: Partial<Record<TVPlatform, () => PlatformAdapter>> = {
   [TVPlatform.Roku]: () => new RokuAdapter(),
   [TVPlatform.AndroidTV]: () => new AndroidTVAdapter(),
   [TVPlatform.FireTV]: () => new FireTVAdapter(),
-  // TODO: Add WebOS and Tizen adapters when implemented
-  // [TVPlatform.WebOS]: () => new WebOSAdapter(),
-  // [TVPlatform.Tizen]: () => new TizenAdapter(),
+  [TVPlatform.WebOS]: () => new WebOSAdapter(),
+  [TVPlatform.Tizen]: () => new TizenAdapter(),
 };
 
 /**

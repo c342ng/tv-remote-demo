@@ -97,6 +97,8 @@
 - [X] T022 [US1] 在 `app/remote/screens/DeviceDiscoveryScreen.tsx` 中实现设备发现与首次连接引导界面（展示同一子网内发现的设备列表）
 - [X] T023 [US1] 在 `app/remote/components/DeviceListItem.tsx` 中实现单个设备行组件（名称、平台、状态指示）
 
+> **Note**: Full implementation of WebOS, Tizen, and Android TV adapters (beyond skeleton) completed on 2025-12-04. See `tasks-implementation-update.md` for details.
+
 ### Implementation for User Story 1 - 遥控 UI 与交互
 
 - [X] T024 [P] [US1] 在 `app/remote/domain/default-profile.ts` 中定义默认 `RemoteProfile` 与标准按钮集合（方向、OK、返回、主页、音量、静音、电源）

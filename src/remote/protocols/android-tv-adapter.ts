@@ -449,15 +449,57 @@ export class AndroidTVAdapter implements PlatformAdapter {
           if (res.ok) {
             const text = await res.text();
 
-            // Check if this looks like an Android TV / Google TV device
-            if (
-              text.includes('Chromecast') ||
-              text.includes('Android') ||
-              text.includes('Google')
-            ) {
+            // Parse eureka_info JSON to get device details
+            let deviceName = `Android TV (${ip})`;
+            let isAndroidTv = false;
+
+            try {
+              const info = JSON.parse(text);
+              deviceName = info.name || deviceName;
+
+              // Check if this is an Android TV / Google TV device
+              // Regular Chromecasts don't support ADB, only Google TV devices do
+              const model = (info.cast_build_revision || info.model_name || '').toLowerCase();
+              const deviceType = (info.device_info?.device_type || '').toLowerCase();
+
+              // Google TV / Android TV indicators
+              isAndroidTv =
+                model.includes('google tv') ||
+                model.includes('android tv') ||
+                model.includes('chromecast with google tv') ||
+                model.includes('ccgtv') || // Chromecast with Google TV code
+                deviceType === 'tv' ||
+                deviceType === 'android_tv';
+
+              // Exclude regular Chromecasts (they don't support ADB)
+              const isRegularChromecast =
+                (model.includes('chromecast') && !model.includes('google tv')) ||
+                deviceType === 'cast' ||
+                deviceType === 'chromecast';
+
+              if (isRegularChromecast && !isAndroidTv) {
+                debug.log(`Skipping regular Chromecast at ${ip}: ${deviceName} (model: ${model})`);
+                return null;
+              }
+            } catch {
+              // If JSON parsing fails, check text content
+              const textLower = text.toLowerCase();
+              isAndroidTv =
+                textLower.includes('android tv') ||
+                textLower.includes('google tv') ||
+                textLower.includes('chromecast with google tv');
+
+              // Skip if it's just a regular Chromecast
+              if (textLower.includes('chromecast') && !isAndroidTv) {
+                debug.log(`Skipping Chromecast at ${ip} (not Android TV)`);
+                return null;
+              }
+            }
+
+            if (isAndroidTv) {
               return {
                 id: ip,
-                name: `Android TV (${ip})`,
+                name: deviceName,
                 ipAddress: ip,
                 port: ADB_DEFAULT_PORT,
                 platform: TVPlatform.AndroidTV,

@@ -273,11 +273,34 @@ export const DeviceDiscoveryScreen: React.FC = () => {
           ]);
         } else {
           debug.error('Connection failed: No session returned');
-          Alert.alert('连接失败', '无法连接到设备，请确保设备已开启。');
+          // Provide more helpful error message based on platform
+          let errorMessage = '无法连接到设备，请确保设备已开启。';
+          if (device.platform === 'android_tv') {
+            errorMessage =
+              '无法连接到设备。\n\n' +
+              '可能的原因：\n' +
+              '• 设备未开启 ADB 网络调试\n' +
+              '• 普通 Chromecast 不支持远程控制\n' +
+              '• 设备防火墙阻止了连接\n\n' +
+              '如需启用 ADB：设置 → 设备偏好设置 → 开发者选项 → 网络调试';
+          }
+          Alert.alert('连接失败', errorMessage);
         }
       } catch (error) {
         debug.error('Connection failed with error:', error);
-        Alert.alert('连接失败', `连接错误: ${error}`);
+        const errorStr = String(error);
+        let errorMessage = `连接错误: ${errorStr}`;
+
+        // Provide user-friendly error messages
+        if (errorStr.includes('Connection refused')) {
+          errorMessage =
+            '连接被拒绝。\n\n' +
+            '设备可能不支持远程控制，或 ADB 调试未启用。';
+        } else if (errorStr.includes('timeout') || errorStr.includes('Timeout')) {
+          errorMessage = '连接超时，请检查网络连接。';
+        }
+
+        Alert.alert('连接失败', errorMessage);
       } finally {
         setConnectingDeviceId(null);
         debug.log('Connection attempt finished');

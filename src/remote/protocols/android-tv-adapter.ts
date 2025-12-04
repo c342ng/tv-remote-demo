@@ -276,18 +276,24 @@ export class AndroidTVAdapter implements PlatformAdapter {
    *
    * Note: ADB port scanning only finds devices with ADB debugging enabled.
    */
-  async discover(timeoutMs = 5000): Promise<DiscoveredDevice[]> {
+  async discover(
+    timeoutMs = 5000,
+    options?: { onDeviceFound?: (device: DiscoveredDevice) => void }
+  ): Promise<DiscoveredDevice[]> {
     debug.log('Starting device discovery...');
     debug.log(`Timeout: ${timeoutMs}ms`);
 
     this._status = ConnectionStatus.Discovering;
+
+    const onDeviceFound = options?.onDeviceFound;
 
     // Try mDNS discovery first (preferred method)
     if (isMdnsSupported()) {
       debug.log('mDNS is supported, trying mDNS discovery first...');
 
       try {
-        const mdnsDevices = await discoverAndroidTvViaMdns(timeoutMs);
+        // Pass the callback to mDNS discovery for real-time updates
+        const mdnsDevices = await discoverAndroidTvViaMdns(timeoutMs, onDeviceFound);
 
         if (mdnsDevices.length > 0) {
           debug.log(`mDNS discovery successful! Found ${mdnsDevices.length} device(s)`);
@@ -304,7 +310,7 @@ export class AndroidTVAdapter implements PlatformAdapter {
     }
 
     // Fallback: Port scanning for ADB (port 5555)
-    return this.discoverViaPortScan(timeoutMs);
+    return this.discoverViaPortScan(timeoutMs, onDeviceFound);
   }
 
   /**
@@ -313,10 +319,27 @@ export class AndroidTVAdapter implements PlatformAdapter {
    * This is slower than mDNS but works when mDNS is not available.
    * Only finds devices with ADB debugging enabled over network.
    */
-  private async discoverViaPortScan(timeoutMs: number): Promise<DiscoveredDevice[]> {
+  private async discoverViaPortScan(
+    timeoutMs: number,
+    onDeviceFound?: (device: DiscoveredDevice) => void
+  ): Promise<DiscoveredDevice[]> {
     debug.log('Starting port scan discovery...');
 
     const discovered: DiscoveredDevice[] = [];
+
+    // Helper to add device and trigger callback
+    const addDevice = (device: DiscoveredDevice) => {
+      discovered.push(device);
+      debug.log(`[AndroidTV] Found device: ${device.name} at ${device.ipAddress}`);
+      
+      if (onDeviceFound) {
+        try {
+          onDeviceFound(device);
+        } catch (err) {
+          debug.warn('onDeviceFound callback error:', err);
+        }
+      }
+    };
 
     // Get network info
     const networkInfo = await getDeviceNetworkInfo();
@@ -359,7 +382,8 @@ export class AndroidTVAdapter implements PlatformAdapter {
               .then((dev) => {
                 if (dev) {
                   debug.log(`✓ Found Android TV device at ${ip}`);
-                  discovered.push(dev);
+                  // Use addDevice helper to trigger callback
+                  addDevice(dev);
                 }
               })
               .catch(() => {

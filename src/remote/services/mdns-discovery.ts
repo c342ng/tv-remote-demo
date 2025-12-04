@@ -135,16 +135,19 @@ function getPrimaryIpAddress(service: ZeroconfService): string | null {
  * It looks for both _androidtvremote._tcp and _googlecast._tcp services.
  *
  * @param timeoutMs - Maximum time to wait for responses (default: 5000ms)
+ * @param onDeviceFound - Optional callback fired immediately when a device is found
  * @returns Promise resolving to array of discovered devices
  *
  * @example
  * ```typescript
- * const devices = await discoverAndroidTvViaMdns();
- * // devices: [{ id: 'xxxx', name: 'Living Room TV', ... }]
+ * const devices = await discoverAndroidTvViaMdns(5000, (device) => {
+ *   console.log('Found device:', device.name);
+ * });
  * ```
  */
 export async function discoverAndroidTvViaMdns(
-  timeoutMs: number = DEFAULT_TIMEOUT_MS
+  timeoutMs: number = DEFAULT_TIMEOUT_MS,
+  onDeviceFound?: (device: DiscoveredDevice) => void
 ): Promise<DiscoveredDevice[]> {
   debug.log('Starting mDNS discovery...');
   debug.log(`Timeout: ${timeoutMs}ms`);
@@ -164,6 +167,23 @@ export async function discoverAndroidTvViaMdns(
     let zeroconf2: any = null;
     let timeoutHandle: NodeJS.Timeout | null = null;
     let isCompleted = false;
+
+    // Helper to add device and trigger callback
+    const addDevice = (device: DiscoveredDevice) => {
+      if (!discovered.has(device.id)) {
+        discovered.set(device.id, device);
+        debug.log(`[mDNS] Found Android TV: ${device.name} at ${device.ipAddress}`);
+        
+        // Trigger real-time callback immediately
+        if (onDeviceFound) {
+          try {
+            onDeviceFound(device);
+          } catch (err) {
+            debug.warn('onDeviceFound callback error:', err);
+          }
+        }
+      }
+    };
 
     // Cleanup function - always resolves with discovered devices, never rejects
     const cleanup = (reason: string) => {
@@ -259,8 +279,8 @@ export async function discoverAndroidTvViaMdns(
           platform: TVPlatform.AndroidTV,
         };
 
-        discovered.set(device.id, device);
-        debug.log(`[mDNS] Found Android TV: ${device.name} at ${device.ipAddress}`);
+        // Use addDevice helper to trigger callback
+        addDevice(device);
       });
 
       // Handle found services (before resolution)
@@ -324,7 +344,8 @@ export async function discoverAndroidTvViaMdns(
                   port: ADB_DEFAULT_PORT,
                   platform: TVPlatform.AndroidTV,
                 };
-                discovered.set(device.id, device);
+                // Use addDevice helper to trigger callback
+                addDevice(device);
                 debug.log(`[mDNS/Cast] Found Google TV: ${device.name} at ${device.ipAddress}`);
               }
             });

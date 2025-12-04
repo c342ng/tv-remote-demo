@@ -182,7 +182,10 @@ export class FireTVAdapter implements PlatformAdapter {
    *    - Queries ro.product.brand / ro.product.manufacturer
    *    - Identifies Fire TV by Amazon brand
    */
-  async discover(timeoutMs = 5000): Promise<DiscoveredDevice[]> {
+  async discover(
+    timeoutMs = 5000,
+    options?: { onDeviceFound?: (device: DiscoveredDevice) => void }
+  ): Promise<DiscoveredDevice[]> {
     debug.log('Starting device discovery...');
     debug.log(`Timeout: ${timeoutMs}ms`);
     debug.log(`ADB client supported: ${isAdbClientSupported()}`);
@@ -191,6 +194,24 @@ export class FireTVAdapter implements PlatformAdapter {
 
     const discovered: DiscoveredDevice[] = [];
     const foundIps = new Set<string>();
+    const onDeviceFound = options?.onDeviceFound;
+
+    // Helper to add device and trigger callback
+    const addDevice = (device: DiscoveredDevice, ip: string) => {
+      if (!foundIps.has(ip)) {
+        foundIps.add(ip);
+        discovered.push(device);
+        debug.log(`[FireTV] Found device: ${device.name} at ${device.ipAddress}`);
+        
+        if (onDeviceFound) {
+          try {
+            onDeviceFound(device);
+          } catch (err) {
+            debug.warn('onDeviceFound callback error:', err);
+          }
+        }
+      }
+    };
 
     // Get network info
     const networkInfo = await getDeviceNetworkInfo();
@@ -234,8 +255,8 @@ export class FireTVAdapter implements PlatformAdapter {
               .then((dev) => {
                 if (dev && !foundIps.has(ip)) {
                   debug.log(`✓ Found Fire TV device at ${ip}`);
-                  foundIps.add(ip);
-                  discovered.push(dev);
+                  // Use addDevice helper to trigger callback
+                  addDevice(dev, ip);
                 }
               })
               .catch(() => {
@@ -299,6 +320,11 @@ export class FireTVAdapter implements PlatformAdapter {
    * Probe device using ADB protocol
    * Queries device properties to identify Fire TV (ro.product.brand = Amazon)
    *
+   * NOTE: When ADB returns AUTH response, we can't determine if it's Fire TV
+   * or regular Android TV without full authentication. In this case, we return
+   * the device as a potential Fire TV and let the AndroidTVAdapter also claim it.
+   * The user can choose which adapter to use based on device behavior.
+   *
    * @param ip - IP address to probe
    * @param timeoutMs - Timeout in milliseconds
    * @param assumeFireTv - If true, assume any ADB-enabled device is a Fire TV (for known IPs)
@@ -311,8 +337,12 @@ export class FireTVAdapter implements PlatformAdapter {
     try {
       const deviceInfo: AdbDeviceInfo | null = await probeAdbDevice(ip, timeoutMs);
 
+      if (!deviceInfo?.isAdbEnabled) {
+        return null;
+      }
+
       // If device requires AUTH and we're assuming it's a Fire TV (known IP)
-      if (assumeFireTv && deviceInfo?.isAdbEnabled) {
+      if (assumeFireTv && deviceInfo.isAdbEnabled) {
         debug.log(`ADB discovery: Assuming Fire TV at known IP ${ip}`);
         debug.log(`  ADB enabled: true, AUTH required`);
 
@@ -325,7 +355,7 @@ export class FireTVAdapter implements PlatformAdapter {
         };
       }
 
-      if (deviceInfo?.isFireTv) {
+      if (deviceInfo.isFireTv) {
         const name = deviceInfo.model
           ? `Fire TV (${deviceInfo.model})`
           : deviceInfo.manufacturer
@@ -339,6 +369,22 @@ export class FireTVAdapter implements PlatformAdapter {
         return {
           id: `firetv-${ip}`,
           name,
+          ipAddress: ip,
+          port: ADB_DEFAULT_PORT,
+          platform: TVPlatform.FireTV,
+        };
+      }
+
+      // If ADB is enabled but we couldn't determine device type (AUTH required),
+      // still return it as a potential Fire TV device
+      // This happens when the device hasn't authorized this client yet
+      if (deviceInfo.isAdbEnabled && !deviceInfo.isFireTv && !deviceInfo.isAndroidTv) {
+        debug.log(`ADB discovery: ADB-enabled device at ${ip} (type unknown, needs AUTH)`);
+        debug.log(`  Returning as potential Fire TV for user to verify`);
+
+        return {
+          id: `firetv-${ip}`,
+          name: `Fire TV (${ip})`,
           ipAddress: ip,
           port: ADB_DEFAULT_PORT,
           platform: TVPlatform.FireTV,

@@ -593,6 +593,12 @@ export class DiscoveryOrchestrator {
     this._setPhase('broadcast');
     debug.log('Phase 2: Starting broadcast discovery...');
 
+    // Create a callback that processes devices through _processDevice
+    // This ensures real-time UI updates as devices are found
+    const onDeviceFoundCallback = (device: DiscoveredDevice) => {
+      this._processDevice(device, 'broadcast');
+    };
+
     // Start periodic broadcast queries
     const runBroadcast = async () => {
       if (this._shouldStop) return;
@@ -600,14 +606,20 @@ export class DiscoveryOrchestrator {
       debug.log('Sending broadcast queries...');
 
       // Run platform-specific discovery in parallel
+      // Pass the real-time callback to each adapter
       const discoveryPromises = platforms.map(async (platform) => {
         const adapterFactory = ADAPTER_FACTORIES[platform];
         if (!adapterFactory) return [];
 
         try {
           const adapter = adapterFactory();
-          const devices = await adapter.discover(Math.min(timeoutMs, 2000));
+          // Pass callback for real-time device discovery
+          const devices = await adapter.discover(Math.min(timeoutMs, 2000), {
+            onDeviceFound: onDeviceFoundCallback,
+          });
 
+          // Note: Devices are already processed via callback, 
+          // but we still process them here for any that might have been missed
           for (const device of devices) {
             this._processDevice(device, 'broadcast');
           }

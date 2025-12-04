@@ -178,18 +178,24 @@ export class RokuAdapter implements PlatformAdapter {
    * - Running in Expo Go (no native module support)
    * - Network doesn't support multicast
    */
-  async discover(timeoutMs = 3000): Promise<DiscoveredDevice[]> {
+  async discover(
+    timeoutMs = 3000,
+    options?: { onDeviceFound?: (device: DiscoveredDevice) => void }
+  ): Promise<DiscoveredDevice[]> {
     debug.log('Starting device discovery...');
     debug.log(`Timeout: ${timeoutMs}ms`);
 
     this._status = ConnectionStatus.Discovering;
+
+    const onDeviceFound = options?.onDeviceFound;
 
     // Try SSDP discovery first (preferred method)
     if (isSsdpSupported()) {
       debug.log('SSDP is supported, trying SSDP discovery first...');
 
       try {
-        const ssdpDevices = await discoverRokuViaSsdp(timeoutMs);
+        // Pass the callback to SSDP discovery for real-time updates
+        const ssdpDevices = await discoverRokuViaSsdp(timeoutMs, onDeviceFound);
 
         if (ssdpDevices.length > 0) {
           debug.log(`SSDP discovery successful! Found ${ssdpDevices.length} device(s)`);
@@ -206,7 +212,7 @@ export class RokuAdapter implements PlatformAdapter {
     }
 
     // Fallback: Subnet scanning (slower but works without native modules)
-    return this.discoverViaSubnetScan(timeoutMs);
+    return this.discoverViaSubnetScan(timeoutMs, onDeviceFound);
   }
 
   /**
@@ -214,10 +220,27 @@ export class RokuAdapter implements PlatformAdapter {
    *
    * This is slower than SSDP but works in all environments including Expo Go.
    */
-  private async discoverViaSubnetScan(timeoutMs: number): Promise<DiscoveredDevice[]> {
+  private async discoverViaSubnetScan(
+    timeoutMs: number,
+    onDeviceFound?: (device: DiscoveredDevice) => void
+  ): Promise<DiscoveredDevice[]> {
     debug.log('Starting subnet scan discovery...');
 
     const discovered: DiscoveredDevice[] = [];
+
+    // Helper to add device and trigger callback
+    const addDevice = (device: DiscoveredDevice) => {
+      discovered.push(device);
+      debug.log(`[Roku] Found device: ${device.name} at ${device.ipAddress}`);
+      
+      if (onDeviceFound) {
+        try {
+          onDeviceFound(device);
+        } catch (err) {
+          debug.warn('onDeviceFound callback error:', err);
+        }
+      }
+    };
 
     // Get network info for logging
     const networkInfo = await getDeviceNetworkInfo();
@@ -274,7 +297,8 @@ export class RokuAdapter implements PlatformAdapter {
               .then((dev) => {
                 if (dev) {
                   debug.log(`✓ Found device: ${dev.name} at ${dev.ipAddress}`);
-                  discovered.push(dev);
+                  // Use addDevice helper to trigger callback
+                  addDevice(dev);
                 }
               })
               .catch(() => {

@@ -209,11 +209,19 @@ async function fetchDeviceInfo(
 
 /**
  * Generic SSDP discovery function
+ *
+ * @param serviceType - SSDP service type to search for
+ * @param platform - TV platform type
+ * @param timeoutMs - Maximum time to wait for responses
+ * @param onDeviceFound - Optional callback fired immediately when a device is found
+ * @param deviceInfoFetcher - Optional function to fetch additional device info
+ * @returns Promise resolving to array of discovered devices
  */
 export async function discoverDevicesViaSsdp(
   serviceType: string,
   platform: TVPlatform,
   timeoutMs: number = DEFAULT_TIMEOUT_MS,
+  onDeviceFound?: (device: DiscoveredDevice) => void,
   deviceInfoFetcher?: (ip: string, port: number) => Promise<{ name: string; model: string; serialNumber: string } | null>
 ): Promise<DiscoveredDevice[]> {
   debug.log(`Starting SSDP discovery for ${platform} (${serviceType})...`);
@@ -234,6 +242,23 @@ export async function discoverDevicesViaSsdp(
     let socket: any = null;
     let timeoutHandle: NodeJS.Timeout | null = null;
     let isCompleted = false;
+
+    // Helper to add device and trigger callback
+    const addDevice = (device: DiscoveredDevice) => {
+      if (!discovered.has(device.id)) {
+        discovered.set(device.id, device);
+        debug.log(`[SSDP] Found Roku: ${device.name} at ${device.ipAddress}`);
+        
+        // Trigger real-time callback immediately
+        if (onDeviceFound) {
+          try {
+            onDeviceFound(device);
+          } catch (err) {
+            debug.warn('onDeviceFound callback error:', err);
+          }
+        }
+      }
+    };
 
     // Cleanup function
     const cleanup = (reason: string) => {
@@ -341,8 +366,8 @@ export async function discoverDevicesViaSsdp(
           platform: platform,
         };
 
-        discovered.set(device.id, device);
-        debug.log(`[SSDP] Found ${platform}: ${device.name} at ${device.ipAddress}`);
+        // Use addDevice helper to trigger callback
+        addDevice(device);
       });
 
       // Bind to a random port and send M-SEARCH request
@@ -395,18 +420,21 @@ export async function discoverDevicesViaSsdp(
  * and listens for responses from Roku devices.
  *
  * @param timeoutMs - Maximum time to wait for responses (default: 3000ms)
+ * @param onDeviceFound - Optional callback fired immediately when a device is found
  * @returns Promise resolving to array of discovered devices
  *
  * @example
  * ```typescript
- * const devices = await discoverRokuViaSsdp();
- * // devices: [{ id: 'P0A070000000', name: 'Living Room Roku', ... }]
+ * const devices = await discoverRokuViaSsdp(5000, (device) => {
+ *   console.log('Found Roku:', device.name);
+ * });
  * ```
  */
 export async function discoverRokuViaSsdp(
-  timeoutMs: number = DEFAULT_TIMEOUT_MS
+  timeoutMs: number = DEFAULT_TIMEOUT_MS,
+  onDeviceFound?: (device: DiscoveredDevice) => void
 ): Promise<DiscoveredDevice[]> {
-    return discoverDevicesViaSsdp(ROKU_SERVICE_TYPE, TVPlatform.Roku, timeoutMs, fetchDeviceInfo);
+    return discoverDevicesViaSsdp(ROKU_SERVICE_TYPE, TVPlatform.Roku, timeoutMs, onDeviceFound, fetchDeviceInfo);
 }
 
 /**

@@ -25,6 +25,14 @@ export interface DiscoveredDevice {
   platform: TVPlatform;
 }
 
+/** Options for device discovery */
+export interface DiscoveryOptions {
+  /** Maximum time to wait for discovery (ms) */
+  timeoutMs?: number;
+  /** Callback fired immediately when a device is found */
+  onDeviceFound?: (device: DiscoveredDevice) => void;
+}
+
 /** TV Session: represents an active connection to a device */
 export interface TVSession {
   readonly sessionId: string;
@@ -45,8 +53,12 @@ export interface PlatformAdapter {
   /** Platform identifier */
   readonly platform: TVPlatform;
 
-  /** Discover devices on the local network (returns discovered devices) */
-  discover(timeoutMs?: number): Promise<DiscoveredDevice[]>;
+  /** 
+   * Discover devices on the local network
+   * @param timeoutMs - Maximum time to wait (deprecated, use options.timeoutMs)
+   * @param options - Discovery options including real-time callback
+   */
+  discover(timeoutMs?: number, options?: DiscoveryOptions): Promise<DiscoveredDevice[]>;
 
   /** Connect to a device and return a session */
   connect(device: TVDevice): Promise<TVSession | null>;

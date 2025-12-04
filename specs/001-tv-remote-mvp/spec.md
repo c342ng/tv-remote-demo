@@ -99,6 +99,19 @@
 
 - **FR-001**: System MUST allow users to discover and list nearby supported TVs (Android TV, Amazon Fire TV, LG webOS, Samsung Tizen, Roku) on the same network或平台允许的发现机制。
   - Minimum supported versions: Android TV 10+, Fire OS 7+, LG webOS 4.0+, Samsung Tizen 4.0+, Roku OS 10+.
+  - **FR-001.1 设备发现流程规范**:
+    - 系统采用三阶段发现机制：**缓存验证 → 广播发现 → 主动扫描**
+    - **Phase 1 - 缓存验证**: 启动发现时，首先并行验证所有已缓存设备的可达性
+    - **Phase 2 - 广播发现**: 启动 SSDP/mDNS 广播监听，每 **2 秒**发送一次 M-SEARCH/mDNS 查询
+    - **Phase 3 - 主动扫描**: 缓存验证完成后，按优先级顺序扫描网络子网块
+    - **广播与扫描协调**: 广播发现 (Phase 2) 与主动扫描 (Phase 3) **并行执行**；当主动扫描结束后，广播发现也同步停止
+  - **FR-001.2 UI 状态同步规范**:
+    - 在发现过程中（Phase 1-3 任一阶段进行中），UI 应显示 loading 状态
+    - 当所有协议的主动扫描结束且广播发现停止后，UI 的 loading 状态应同步结束
+    - 用户视觉感观应与实际发现状态保持一致：扫描中 = loading，扫描结束 = loading 结束
+  - **FR-001.3 实时反馈规范**:
+    - 任何发现方式（缓存验证、广播、扫描）找到设备后，应立即（<100ms）在设备列表中显示
+    - 同一设备通过不同方式被发现时，应进行去重处理，不重复显示
 - **FR-002**: System MUST allow users to complete initial pairing/authorization with a selected TV,并在后续会话中复用已授权的连接信息（不强制重新配对）。认证凭据（如配对令牌、授权密钥）MUST 存储在 iOS Keychain 中以确保安全性。
 - **FR-003**: Users MUST be able to control a connected TV via a virtual remote UI including navigation (up/down/left/right), select/OK, back, home, volume up/down, mute, and power (where supported by platform).
 - **FR-004**: System MUST support managing multiple TVs (maximum 10 devices), including adding, renaming, selecting active device, and removing devices from the saved list。当达到10台上限时，用户需先删除现有设备才能添加新设备。

@@ -45,7 +45,7 @@ const debug = {
 const DEFAULT_TIMEOUT_MS = 5000;
 
 /** Broadcast interval in milliseconds */
-const BROADCAST_INTERVAL_MS = 2000;
+const BROADCAST_INTERVAL_MS = 5000;
 
 /** Default concurrency for scanning */
 const DEFAULT_SCAN_CONCURRENCY = 50;

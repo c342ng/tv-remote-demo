@@ -33,7 +33,7 @@ import {
   SessionErrorCode,
 } from '../domain/models';
 import { getSubnetsToScan, getDeviceNetworkInfo, SubnetInfo } from '../services/network-utils';
-import { probeAdbDevice, isAdbClientSupported, type AdbDeviceInfo } from '../services/adb-client';
+import { probeAdbDevice, isAdbClientSupported, sendAdbKeyEvent, type AdbDeviceInfo } from '../services/adb-client';
 
 /** Debug logger for Fire TV adapter */
 const DEBUG_TAG = '[FireTVAdapter]';
@@ -130,12 +130,23 @@ class FireTVSession implements TVSession {
     }
 
     try {
-      // For MVP: Log the command that would be sent
-      // Full implementation would use ADB protocol
-      debug.log(`Would send keyevent ${keycode} for command ${command}`);
-      debug.log(`ADB command: shell:input keyevent ${keycode}`);
-
-      return { success: true };
+      // Send ADB keyevent command
+      const result = await sendAdbKeyEvent(this.device.ipAddress, keycode, 5000);
+      
+      if (result.success) {
+        debug.log(`Sent keyevent ${keycode} for command ${command}`);
+        return { success: true };
+      } else {
+        debug.warn(`ADB command failed: ${result.error}`);
+        return {
+          success: false,
+          error: {
+            code: SessionErrorCode.NetworkUnreachable,
+            message: result.error || 'ADB command failed',
+            at: new Date().toISOString(),
+          },
+        };
+      }
     } catch (err) {
       debug.error(`Command failed: Error sending ADB command`, err);
       return {

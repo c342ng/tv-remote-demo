@@ -181,33 +181,81 @@ export async function discoverAllDevices(
     byPlatform.set(platform, []);
   }
 
+  // Helper function to check if platform A is more specific than platform B
+  function isPlatformMoreSpecific(a: TVPlatform, b: TVPlatform): boolean {
+    // Fire TV is a specific type of Android device
+    if (a === TVPlatform.FireTV && b === TVPlatform.AndroidTV) return true;
+    return false;
+  }
+
   // Helper function to process a single discovered device
+  // Uses IP-only deduplication to prevent Fire TV/Android TV duplicates
   function processDevice(device: DiscoveredDevice): boolean {
-    // Generate a unique key based on IP and platform
-    const deviceKey = `${device.ipAddress}-${device.platform}`;
+    // Generate a unique key based on IP only
+    const deviceKey = device.ipAddress;
 
-    if (!seenDeviceIds.has(deviceKey)) {
-      seenDeviceIds.add(deviceKey);
-      allDevices.push(device);
+    const existingDeviceId = Array.from(seenDeviceIds).find((id) => id === deviceKey);
 
-      const platformDevices = byPlatform.get(device.platform) || [];
-      platformDevices.push(device);
-      byPlatform.set(device.platform, platformDevices);
-
-      // Notify caller immediately when device is found
-      if (onDeviceFound) {
-        try {
-          onDeviceFound(device);
-        } catch (err) {
-          debug.warn('onDeviceFound callback error:', err);
+    if (existingDeviceId) {
+      // Find the existing device
+      const existingDevice = allDevices.find((d) => d.ipAddress === deviceKey);
+      
+      if (existingDevice) {
+        if (existingDevice.platform === device.platform) {
+          debug.log(`Duplicate device skipped: ${device.name} (${deviceKey})`);
+          return false;
         }
-      }
 
-      return true; // New device added
-    } else {
-      debug.log(`Duplicate device skipped: ${device.name} (${deviceKey})`);
-      return false; // Duplicate
+        // Check if new device is more specific
+        if (isPlatformMoreSpecific(device.platform, existingDevice.platform)) {
+          debug.log(`Replacing ${existingDevice.platform} with ${device.platform} at ${deviceKey}`);
+          
+          // Remove from allDevices and byPlatform
+          const index = allDevices.indexOf(existingDevice);
+          if (index >= 0) allDevices.splice(index, 1);
+          
+          const oldPlatformDevices = byPlatform.get(existingDevice.platform) || [];
+          const oldIndex = oldPlatformDevices.indexOf(existingDevice);
+          if (oldIndex >= 0) oldPlatformDevices.splice(oldIndex, 1);
+          
+          // Add new device
+          allDevices.push(device);
+          const platformDevices = byPlatform.get(device.platform) || [];
+          platformDevices.push(device);
+          byPlatform.set(device.platform, platformDevices);
+          
+          if (onDeviceFound) {
+            try {
+              onDeviceFound(device);
+            } catch (err) {
+              debug.warn('onDeviceFound callback error:', err);
+            }
+          }
+          return true;
+        }
+        
+        debug.log(`Keeping ${existingDevice.platform} over ${device.platform} at ${deviceKey}`);
+        return false;
+      }
     }
+
+    seenDeviceIds.add(deviceKey);
+    allDevices.push(device);
+
+    const platformDevices = byPlatform.get(device.platform) || [];
+    platformDevices.push(device);
+    byPlatform.set(device.platform, platformDevices);
+
+    // Notify caller immediately when device is found
+    if (onDeviceFound) {
+      try {
+        onDeviceFound(device);
+      } catch (err) {
+        debug.warn('onDeviceFound callback error:', err);
+      }
+    }
+
+    return true; // New device added
   }
 
   // Create discovery promises for each platform
@@ -477,20 +525,65 @@ export class DiscoveryOrchestrator {
 
   /**
    * Generate device key for deduplication
+   * Uses only IP address to prevent duplicate entries from Fire TV and Android TV
    */
   private _getDeviceKey(device: DiscoveredDevice): string {
-    return `${device.ipAddress}-${device.platform}`;
+    return device.ipAddress;
+  }
+
+  /**
+   * Check if platform A is more specific than platform B
+   * Fire TV is more specific than Android TV (Fire TV is Amazon's Android fork)
+   */
+  private _isPlatformMoreSpecific(a: TVPlatform, b: TVPlatform): boolean {
+    // Fire TV is a specific type of Android device
+    if (a === TVPlatform.FireTV && b === TVPlatform.AndroidTV) return true;
+    // Tizen/webOS are already specific platforms
+    return false;
   }
 
   /**
    * Process a discovered device (deduplicate and emit)
+   * If same IP exists with different platform, keep the more specific one
    */
   private _processDevice(device: DiscoveredDevice, source: string): boolean {
     const key = this._getDeviceKey(device);
+    const existingDevice = this._discoveredDevices.get(key);
 
-    if (this._discoveredDevices.has(key)) {
-      debug.log(`Device already known: ${device.name} (via ${source})`);
-      return false;
+    if (existingDevice) {
+      // Same IP already exists
+      if (existingDevice.platform === device.platform) {
+        debug.log(`Device already known: ${device.name} at ${device.ipAddress} (via ${source})`);
+        return false;
+      }
+
+      // Different platform - check which is more specific
+      if (this._isPlatformMoreSpecific(device.platform, existingDevice.platform)) {
+        debug.log(`Replacing ${existingDevice.platform} with more specific ${device.platform} at ${device.ipAddress}`);
+        this._discoveredDevices.set(key, device);
+        
+        // Update cache
+        discoveryCache.updateCache(device, true, source as any).catch((err) => {
+          debug.warn('Failed to update cache:', err);
+        });
+
+        // Emit event for the updated device
+        if (this._eventEmitter.onDeviceFound) {
+          try {
+            this._eventEmitter.onDeviceFound(device);
+          } catch (err) {
+            debug.warn('onDeviceFound callback error:', err);
+          }
+        }
+        return true;
+      } else if (this._isPlatformMoreSpecific(existingDevice.platform, device.platform)) {
+        debug.log(`Keeping more specific ${existingDevice.platform} over ${device.platform} at ${device.ipAddress}`);
+        return false;
+      } else {
+        // Neither is more specific, keep the first one found
+        debug.log(`Device already known with different platform: ${device.ipAddress} (${existingDevice.platform} vs ${device.platform})`);
+        return false;
+      }
     }
 
     this._discoveredDevices.set(key, device);

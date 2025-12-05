@@ -18,6 +18,12 @@
  * @module android-tv-adapter
  */
 
+import type {
+  PlatformAdapter,
+  DiscoveredDevice,
+  CommandResult,
+  TVSession,
+} from '../domain/remote-interfaces';
 import {
   TVDevice,
   ConnectionStatus,
@@ -27,6 +33,7 @@ import {
 } from '../domain/models';
 import { discoverAndroidTvViaMdns, isMdnsSupported } from '../services/mdns-discovery';
 import { getSubnetsToScan, getDeviceNetworkInfo, SubnetInfo } from '../services/network-utils';
+import { sendAdbKeyEvent } from '../services/adb-client';
 import TcpSocket from 'react-native-tcp-socket';
 
 /** Debug logger for Android TV adapter */
@@ -202,30 +209,23 @@ class AndroidTVSession implements TVSession {
     }
 
     try {
-      // For MVP: We'll implement a basic connectivity check
-      // Full ADB implementation would send: `shell:input keyevent ${keycode}`
-      //
-      // Note: Implementing full ADB requires:
-      // 1. TCP connection to port 5555
-      // 2. RSA key exchange for authentication
-      // 3. ADB protocol message framing
-      //
-      // For now, we simulate success for connected devices
-      // TODO: Implement full ADB protocol with react-native-tcp-socket
-
-      debug.log(`Would send keyevent ${keycode} for command ${command}`);
-      debug.log(`ADB command: shell:input keyevent ${keycode}`);
-
-      if (this.socket) {
-          // Placeholder for sending ADB packet
-          // this.socket.write(buildAdbPacket(...));
+      // Send ADB keyevent command
+      const result = await sendAdbKeyEvent(this.device.ipAddress, keycode, 5000);
+      
+      if (result.success) {
+        debug.log(`Sent keyevent ${keycode} for command ${command}`);
+        return { success: true };
+      } else {
+        debug.warn(`ADB command failed: ${result.error}`);
+        return {
+          success: false,
+          error: {
+            code: SessionErrorCode.NetworkUnreachable,
+            message: result.error || 'ADB command failed',
+            at: new Date().toISOString(),
+          },
+        };
       }
-
-      // Simulate command execution
-      // In real implementation, this would be:
-      // await this.sendAdbCommand(`shell:input keyevent ${keycode}`);
-
-      return { success: true };
     } catch (err) {
       debug.error(`Command failed: Error sending ADB command`, err);
       return {
@@ -410,112 +410,170 @@ export class AndroidTVAdapter implements PlatformAdapter {
   /**
    * Probe a single IP for ADB port availability
    *
-   * This performs a simple TCP connect check to port 5555.
-   * Note: This doesn't verify if the device is an Android TV,
-   * just that ADB port is open.
+   * This performs a two-phase check:
+   * 1. Check if device has Chromecast/Google TV info endpoint (8008)
+   * 2. Verify ADB port (5555) is open - required for control
+   *
+   * Only devices with BOTH indicators are considered valid Android TV.
+   * Regular Chromecasts (no ADB) are filtered out.
    */
   private async probeAdbDevice(ip: string, timeoutMs: number): Promise<DiscoveredDevice | null> {
-    // For now, we use a simple HTTP-based check
-    // In a full implementation, this would use TCP socket to check ADB port
-    //
-    // Approach for MVP:
-    // 1. Try to detect if port 5555 is open (would need native TCP module)
-    // 2. If available, mark as potential Android TV device
-    //
-    // Since we can't do raw TCP in React Native without native modules,
-    // we'll simulate a lighter check
-
     try {
-      // Attempt a connection test
-      // Note: This is a placeholder - real implementation needs TCP socket
       const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), Math.min(timeoutMs, 1000));
+      const timer = setTimeout(() => controller.abort(), Math.min(timeoutMs, 1500));
 
-      // Try common Android TV ports/services
-      // Some Android TV devices expose a REST API on certain ports
-      const testUrls = [
-        `http://${ip}:8008/setup/eureka_info`, // Chromecast built-in (Google TV)
-        `http://${ip}:8443/`, // Some Android TV devices
-      ];
+      // Phase 1: Check Chromecast/Google TV info endpoint
+      let deviceName = `Android TV (${ip})`;
+      let isAndroidTv = false;
+      let hasEurekaInfo = false;
 
-      for (const url of testUrls) {
-        try {
-          const res = await fetch(url, {
-            method: 'GET',
-            signal: controller.signal,
-          });
-          clearTimeout(timer);
+      try {
+        const res = await fetch(`http://${ip}:8008/setup/eureka_info`, {
+          method: 'GET',
+          signal: controller.signal,
+        });
 
-          if (res.ok) {
-            const text = await res.text();
+        if (res.ok) {
+          hasEurekaInfo = true;
+          const text = await res.text();
 
-            // Parse eureka_info JSON to get device details
-            let deviceName = `Android TV (${ip})`;
-            let isAndroidTv = false;
+          try {
+            const info = JSON.parse(text);
+            deviceName = info.name || deviceName;
 
-            try {
-              const info = JSON.parse(text);
-              deviceName = info.name || deviceName;
+            // Check if this is an Android TV / Google TV device
+            const model = (info.cast_build_revision || info.model_name || '').toLowerCase();
+            const deviceType = (info.device_info?.device_type || '').toLowerCase();
 
-              // Check if this is an Android TV / Google TV device
-              // Regular Chromecasts don't support ADB, only Google TV devices do
-              const model = (info.cast_build_revision || info.model_name || '').toLowerCase();
-              const deviceType = (info.device_info?.device_type || '').toLowerCase();
+            // Google TV / Android TV indicators
+            isAndroidTv =
+              model.includes('google tv') ||
+              model.includes('android tv') ||
+              model.includes('chromecast with google tv') ||
+              model.includes('ccgtv') || // Chromecast with Google TV code
+              deviceType === 'tv' ||
+              deviceType === 'android_tv';
 
-              // Google TV / Android TV indicators
-              isAndroidTv =
-                model.includes('google tv') ||
-                model.includes('android tv') ||
-                model.includes('chromecast with google tv') ||
-                model.includes('ccgtv') || // Chromecast with Google TV code
-                deviceType === 'tv' ||
-                deviceType === 'android_tv';
+            // Exclude regular Chromecasts (they don't support ADB)
+            const isRegularChromecast =
+              (model.includes('chromecast') && !model.includes('google tv')) ||
+              deviceType === 'cast' ||
+              deviceType === 'chromecast';
 
-              // Exclude regular Chromecasts (they don't support ADB)
-              const isRegularChromecast =
-                (model.includes('chromecast') && !model.includes('google tv')) ||
-                deviceType === 'cast' ||
-                deviceType === 'chromecast';
-
-              if (isRegularChromecast && !isAndroidTv) {
-                debug.log(`Skipping regular Chromecast at ${ip}: ${deviceName} (model: ${model})`);
-                return null;
-              }
-            } catch {
-              // If JSON parsing fails, check text content
-              const textLower = text.toLowerCase();
-              isAndroidTv =
-                textLower.includes('android tv') ||
-                textLower.includes('google tv') ||
-                textLower.includes('chromecast with google tv');
-
-              // Skip if it's just a regular Chromecast
-              if (textLower.includes('chromecast') && !isAndroidTv) {
-                debug.log(`Skipping Chromecast at ${ip} (not Android TV)`);
-                return null;
-              }
+            if (isRegularChromecast && !isAndroidTv) {
+              debug.log(`Skipping regular Chromecast at ${ip}: ${deviceName} (no ADB support)`);
+              clearTimeout(timer);
+              return null;
             }
+          } catch {
+            // If JSON parsing fails, check text content
+            const textLower = text.toLowerCase();
+            isAndroidTv =
+              textLower.includes('android tv') ||
+              textLower.includes('google tv') ||
+              textLower.includes('chromecast with google tv');
 
-            if (isAndroidTv) {
-              return {
-                id: ip,
-                name: deviceName,
-                ipAddress: ip,
-                port: ADB_DEFAULT_PORT,
-                platform: TVPlatform.AndroidTV,
-              };
+            // Skip if it's just a regular Chromecast
+            if (textLower.includes('chromecast') && !isAndroidTv) {
+              debug.log(`Skipping Chromecast at ${ip} (not Android TV)`);
+              clearTimeout(timer);
+              return null;
             }
           }
-        } catch {
-          // Continue to next URL
         }
+      } catch {
+        // No eureka_info endpoint - might still be Android TV via mDNS
       }
 
       clearTimeout(timer);
+
+      // Phase 2: Verify ADB port is open (required for control)
+      // This filters out regular Chromecasts that have eureka_info but no ADB
+      const adbPortOpen = await this.checkAdbPort(ip, Math.min(timeoutMs, 1000));
+
+      if (!adbPortOpen) {
+        if (hasEurekaInfo) {
+          debug.log(`Skipping device at ${ip}: has eureka_info but ADB port 5555 closed (regular Chromecast)`);
+        }
+        return null;
+      }
+
+      // Device has ADB port open - it's controllable
+      if (hasEurekaInfo && isAndroidTv) {
+        debug.log(`Found Android TV at ${ip}: ${deviceName} (ADB enabled)`);
+        return {
+          id: ip,
+          name: deviceName,
+          ipAddress: ip,
+          port: ADB_DEFAULT_PORT,
+          platform: TVPlatform.AndroidTV,
+        };
+      }
+
+      // ADB port open but no eureka_info - could be Android TV without Cast
+      // Only include if we're confident it's an Android TV
+      if (adbPortOpen && !hasEurekaInfo) {
+        debug.log(`Found ADB device at ${ip} (no eureka_info, assuming Android TV)`);
+        return {
+          id: ip,
+          name: `Android TV (${ip})`,
+          ipAddress: ip,
+          port: ADB_DEFAULT_PORT,
+          platform: TVPlatform.AndroidTV,
+        };
+      }
+
       return null;
     } catch {
       return null;
     }
+  }
+
+  /**
+   * Check if ADB port (5555) is open on the device
+   * Uses TCP socket connection attempt via react-native-tcp-socket
+   */
+  private async checkAdbPort(ip: string, timeoutMs: number): Promise<boolean> {
+    return new Promise((resolve) => {
+      let resolved = false;
+      const safeResolve = (value: boolean) => {
+        if (!resolved) {
+          resolved = true;
+          resolve(value);
+        }
+      };
+
+      try {
+        const socket = TcpSocket.createConnection(
+          {
+            port: ADB_DEFAULT_PORT,
+            host: ip,
+          },
+          () => {
+            // Connection successful - ADB port is open
+            socket.destroy();
+            safeResolve(true);
+          }
+        );
+
+        socket.on('error', () => {
+          socket.destroy();
+          safeResolve(false);
+        });
+
+        socket.on('close', () => {
+          safeResolve(false);
+        });
+
+        // Fallback timeout
+        setTimeout(() => {
+          socket.destroy();
+          safeResolve(false);
+        }, timeoutMs);
+      } catch {
+        resolve(false);
+      }
+    });
   }
 
   // ─────────────────────────────────────────────────────────────────────────

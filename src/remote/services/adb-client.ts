@@ -643,3 +643,230 @@ export function isAdbClientSupported(): boolean {
   const supported = TcpSocket !== null;
   return supported;
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ADB Command Execution
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Build an ADB OPEN message to open a shell stream
+ */
+function buildAdbOpenMessage(localId: number, destination: string): Uint8Array {
+  const destBytes = stringToBytes(destination + '\0');
+
+  // Build ADB message header (24 bytes)
+  // Format: command(4) + arg0(4) + arg1(4) + data_length(4) + data_checksum(4) + magic(4)
+  const header = concatBytes(
+    writeUInt32LE(ADB_PROTOCOL.CMD.OPEN), // command
+    writeUInt32LE(localId), // arg0 = local ID
+    writeUInt32LE(0), // arg1 = 0 for OPEN
+    writeUInt32LE(destBytes.length), // data length
+    writeUInt32LE(calculateChecksum(destBytes)), // data checksum
+    writeUInt32LE(ADB_PROTOCOL.CMD.OPEN ^ 0xffffffff) // magic
+  );
+
+  return concatBytes(header, destBytes);
+}
+
+/**
+ * Build an ADB WRTE message to write data to a stream
+ */
+function buildAdbWriteMessage(localId: number, remoteId: number, data: string): Uint8Array {
+  const dataBytes = stringToBytes(data);
+
+  const header = concatBytes(
+    writeUInt32LE(ADB_PROTOCOL.CMD.WRTE), // command
+    writeUInt32LE(localId), // arg0 = local ID
+    writeUInt32LE(remoteId), // arg1 = remote ID
+    writeUInt32LE(dataBytes.length), // data length
+    writeUInt32LE(calculateChecksum(dataBytes)), // data checksum
+    writeUInt32LE(ADB_PROTOCOL.CMD.WRTE ^ 0xffffffff) // magic
+  );
+
+  return concatBytes(header, dataBytes);
+}
+
+/**
+ * Result of ADB command execution
+ */
+export interface AdbCommandResult {
+  success: boolean;
+  output?: string;
+  error?: string;
+}
+
+/**
+ * Send an ADB shell command to a device
+ * 
+ * This implements the full ADB protocol flow:
+ * 1. Connect to device (CNXN)
+ * 2. Handle AUTH if required (currently returns error as we don't have keys)
+ * 3. Open shell stream (OPEN shell:command)
+ * 4. Read response (WRTE)
+ * 5. Close stream (CLSE)
+ * 
+ * Note: This requires the device to have authorized this host's ADB key.
+ * First connection will show an authorization prompt on the device.
+ * 
+ * @param ip - Device IP address
+ * @param command - Shell command to execute (e.g., "input keyevent 3")
+ * @param timeoutMs - Command timeout
+ * @returns Command execution result
+ */
+export async function sendAdbCommand(
+  ip: string,
+  command: string,
+  timeoutMs: number = 5000
+): Promise<AdbCommandResult> {
+  const TcpSocket = getTcpModule();
+  if (!TcpSocket) {
+    return { success: false, error: 'TCP socket module not available' };
+  }
+
+  debug.log(`Sending ADB command to ${ip}: ${command}`);
+
+  return new Promise((resolve) => {
+    let resolved = false;
+    let socket: any = null;
+    let dataChunks: Uint8Array[] = [];
+    let connectionEstablished = false;
+    let remoteId = 0;
+    const localId = Math.floor(Math.random() * 0x7fffffff) + 1;
+
+    const cleanup = (result: AdbCommandResult) => {
+      if (resolved) return;
+      resolved = true;
+
+      if (socket) {
+        try {
+          socket.destroy();
+        } catch {
+          // Ignore cleanup errors
+        }
+      }
+      resolve(result);
+    };
+
+    // Set timeout
+    const timer = setTimeout(() => {
+      debug.log(`ADB command timeout for ${ip}`);
+      cleanup({ success: false, error: 'Command timeout' });
+    }, timeoutMs);
+
+    try {
+      socket = TcpSocket.createConnection(
+        {
+          host: ip,
+          port: ADB_PORT,
+        },
+        () => {
+          debug.log(`Connected to ADB at ${ip}:${ADB_PORT}`);
+          // Send CNXN message
+          const cnxnMessage = buildAdbCnxnMessage();
+          socket.write(cnxnMessage);
+          debug.log(`Sent ADB CNXN to ${ip}`);
+        }
+      );
+
+      socket.on('data', (data: any) => {
+        // Convert data to Uint8Array
+        let bytes: Uint8Array;
+        if (data instanceof Uint8Array) {
+          bytes = data;
+        } else if (Array.isArray(data)) {
+          bytes = new Uint8Array(data);
+        } else if (typeof data === 'string') {
+          bytes = stringToBytes(data);
+        } else {
+          bytes = new Uint8Array(data.length);
+          for (let i = 0; i < data.length; i++) {
+            bytes[i] = data[i];
+          }
+        }
+
+        dataChunks.push(bytes);
+        const dataBuffer = concatBytes(...dataChunks);
+
+        if (dataBuffer.length >= 24) {
+          const cmdCode = readUInt32LE(dataBuffer, 0);
+          const arg0 = readUInt32LE(dataBuffer, 4);
+          const arg1 = readUInt32LE(dataBuffer, 8);
+          const dataLength = readUInt32LE(dataBuffer, 12);
+
+          debug.log(`ADB response: cmd=0x${cmdCode.toString(16)}, arg0=${arg0}, arg1=${arg1}, len=${dataLength}`);
+
+          if (cmdCode === ADB_PROTOCOL.CMD.CNXN && !connectionEstablished) {
+            // Connection established, send OPEN for shell command
+            connectionEstablished = true;
+            dataChunks = [];
+            
+            const destination = `shell:${command}`;
+            const openMessage = buildAdbOpenMessage(localId, destination);
+            socket.write(openMessage);
+            debug.log(`Sent ADB OPEN: ${destination}`);
+          } else if (cmdCode === ADB_PROTOCOL.CMD.AUTH) {
+            // Device requires authentication
+            // For now, return error - full implementation would need RSA key exchange
+            clearTimeout(timer);
+            debug.log(`ADB AUTH required - device needs to authorize this host`);
+            cleanup({
+              success: false,
+              error: 'ADB authentication required - please authorize on device',
+            });
+          } else if (cmdCode === ADB_PROTOCOL.CMD.OKAY) {
+            // Stream opened successfully
+            remoteId = arg0;
+            dataChunks = [];
+            debug.log(`ADB stream opened, remoteId=${remoteId}`);
+          } else if (cmdCode === ADB_PROTOCOL.CMD.WRTE && dataBuffer.length >= 24 + dataLength) {
+            // Received command output
+            const outputBytes = dataBuffer.slice(24, 24 + dataLength);
+            const output = bytesToString(outputBytes);
+            debug.log(`ADB command output: ${output}`);
+            
+            // Command executed successfully
+            clearTimeout(timer);
+            cleanup({ success: true, output });
+          } else if (cmdCode === ADB_PROTOCOL.CMD.CLSE) {
+            // Stream closed (command complete with no output)
+            clearTimeout(timer);
+            cleanup({ success: true, output: '' });
+          }
+        }
+      });
+
+      socket.on('error', (err: Error) => {
+        clearTimeout(timer);
+        debug.log(`ADB connection error: ${err.message}`);
+        cleanup({ success: false, error: err.message });
+      });
+
+      socket.on('close', () => {
+        clearTimeout(timer);
+        if (!resolved) {
+          cleanup({ success: false, error: 'Connection closed unexpectedly' });
+        }
+      });
+    } catch (err) {
+      clearTimeout(timer);
+      debug.error(`Failed to send ADB command to ${ip}:`, err);
+      cleanup({ success: false, error: String(err) });
+    }
+  });
+}
+
+/**
+ * Send a key event to an Android device via ADB
+ * 
+ * @param ip - Device IP address  
+ * @param keycode - Android keycode (e.g., 3 for HOME, 19 for UP)
+ * @param timeoutMs - Command timeout
+ * @returns Command execution result
+ */
+export async function sendAdbKeyEvent(
+  ip: string,
+  keycode: number,
+  timeoutMs: number = 5000
+): Promise<AdbCommandResult> {
+  return sendAdbCommand(ip, `input keyevent ${keycode}`, timeoutMs);
+}
